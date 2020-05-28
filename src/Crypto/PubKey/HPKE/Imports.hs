@@ -27,6 +27,7 @@ module Crypto.PubKey.HPKE.Imports
 
 import Data.ByteArray
 import Data.ByteString (ByteString)
+import Data.Memory.Endian
 
 import Control.Applicative
 import Control.Monad
@@ -35,13 +36,16 @@ import Data.List
 import Data.Maybe hiding (fromJust)
 import Data.Word
 
+import Foreign.Storable (pokeByteOff)
+
 import qualified Prelude as P
 
-be16 :: (P.Integral a, Bits a) => a -> [ByteString] -> [ByteString]
+be16 :: (ByteArray ba, P.Integral a) => a -> [ba] -> [ba]
 be16 val xs =
-    let len_hi = singleton (P.fromIntegral (val `shiftR` 8))
-        len_lo = singleton (P.fromIntegral  val)
-     in len_hi : len_lo : xs
+    let w16 = P.fromIntegral val :: Word16
+        len = unsafeCreate 2 (\p -> pokeByteOff p 0 (toBE w16))
+     in len : xs
+{-# INLINABLE be16 #-}
 
 fromJust :: P.String -> Maybe a -> a
 fromJust what Nothing  = P.error ("fromJust " ++ what ++ ": Nothing") -- yuck
