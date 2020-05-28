@@ -9,6 +9,7 @@ copyright:           "2020 Olivier Chéron"
 extra-source-files:
 - README.md
 - ChangeLog.md
+- test/test-vectors.json.gz
 
 synopsis:            Hybrid Public Key Encryption
 category:            Crypto
@@ -44,5 +45,9 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - hpke
+    - aeson
     - tasty
+    - tasty-hunit
     - tasty-quickcheck
+    - text
+    - zlib

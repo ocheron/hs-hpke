@@ -6,6 +6,7 @@
 module Main (main) where
 
 import qualified Data.ByteString as B
+import Data.List (find)
 import Data.Proxy
 
 import Crypto.ECC
@@ -14,9 +15,11 @@ import Crypto.Error
 import Crypto.PubKey.HPKE as HPKE
 
 import Test.Tasty
+import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck
 
 import Utils
+import Vectors
 
 instance Show HPKE.Context where
     show _ = "hpke-context"
@@ -24,24 +27,89 @@ instance Show HPKE.Context where
 data SomeKEM = forall kem . (AuthKEM kem, Show (KEMPrivate kem), Show (KEMPublic kem)) => SomeKEM (Proxy kem)
 
 instance Arbitrary SomeKEM where
-    arbitrary = elements
-        [ SomeKEM (Proxy :: Proxy (DHKEM (ECGroup Curve_P256R1)))
-        , SomeKEM (Proxy :: Proxy (DHKEM (ECGroup Curve_X25519)))
-        , SomeKEM (Proxy :: Proxy (DHKEM (ECGroup Curve_X448)))
-        ]
+    arbitrary = elements allKems
 
 instance Show SomeKEM where
     show (SomeKEM kem) = kemName kem
 
 main :: IO ()
 main = defaultMain $ testGroup "hpke"
-    [ testGroup "properties"
+    [ testCaseSteps "vectors" test_vectors
+    , testGroup "properties"
         [ testProperty "Base" prop_base
         , testProperty "PSK" prop_psk
         , testProperty "Auth" prop_auth
         , testProperty "AuthPSK" prop_auth_psk
         ]
     ]
+
+
+{- Test Vectors -}
+
+test_vectors :: (String -> IO ()) -> Assertion
+test_vectors step = do
+    step "Reading test vectors ..."
+    vecs <- readVectors "test/test-vectors.json.gz"
+    mapM_ (testVector step) vecs
+
+testVector :: (String -> IO ()) -> Vector -> Assertion
+testVector step Vector{..} = do
+    let mKem  = findKEM (fromIntegral vecKemID)
+        mKdf  = findKDF (fromIntegral vecKdfID)
+        mAead = findAEAD (fromIntegral vecAeadID)
+    case (mKem, mKdf, mAead) of
+        (Just (SomeKEM kem), Just kdf, Just aead) -> do
+            let cipher = Cipher kdf aead
+                name   = kemName kem ++ ", " ++ kdfName kdf
+                                     ++ ", " ++ aeadName aead
+            case (vecSkSm, vecPsk, vecPskID) of
+                (Just skSm, Just psk, Just pskID) -> testAuthPSK name kem cipher psk pskID skSm
+                (Just skSm, Nothing, Nothing)     -> testAuth name kem cipher skSm
+                (Nothing, Just psk, Just pskID)   -> testPSK name kem cipher psk pskID
+                (Nothing, Nothing, Nothing)       -> testBase name kem cipher
+                _                                 -> fail "invalid vector"
+        _ -> return ()
+  where
+    -- In test vectors we use only the recipient context because the @enc@ value
+    -- has already been generated.  In property-based testing the recipient
+    -- context is tested against a true sender context, both based on a random
+    -- ephemeral key.
+    testBase name kem cipher = do
+        step ("Base: " ++ name)
+        pairR <- throwCryptoErrorIO $ unmarshalPrivate kem vecSkRm
+        ctx <- throwCryptoErrorIO $ setupBaseR kem cipher vecEnc pairR vecInfo
+        testBoth ctx vecExports vecEncryptions
+    testPSK name kem cipher psk pskID = do
+        step ("PSK: " ++ name)
+        pairR <- throwCryptoErrorIO $ unmarshalPrivate kem vecSkRm
+        ctx <- throwCryptoErrorIO $ setupPSKR kem cipher vecEnc pairR vecInfo psk pskID
+        testBoth ctx vecExports vecEncryptions
+    testAuth name kem cipher skSm = do
+        step ("Auth: " ++ name)
+        (_, pkS) <- throwCryptoErrorIO $ unmarshalPrivate kem skSm
+        pairR <- throwCryptoErrorIO $ unmarshalPrivate kem vecSkRm
+        ctx <- throwCryptoErrorIO $ setupAuthR kem cipher vecEnc pairR vecInfo pkS
+        testBoth ctx vecExports vecEncryptions
+    testAuthPSK name kem cipher psk pskID skSm = do
+        step ("AuthPSK: " ++ name)
+        (_, pkS) <- throwCryptoErrorIO $ unmarshalPrivate kem skSm
+        pairR <- throwCryptoErrorIO $ unmarshalPrivate kem vecSkRm
+        ctx <- throwCryptoErrorIO $ setupAuthPSKR kem cipher vecEnc pairR vecInfo psk pskID pkS
+        testBoth ctx vecExports vecEncryptions
+
+    testBoth ctx exports encryptions =
+        testEncryptions ctx ctx encryptions >> testExports ctx exports
+
+    testEncryptions _ _ [] = return ()
+    testEncryptions ctx0s ctx0r (Encryption{..} : xs) = do
+        let (ct, ctx1s) = seal ctx0s eAAD ePlaintext
+            (pt, ctx1r) = open ctx0r eAAD eCiphertext
+        assertEqual "ciphertext mismatch" eCiphertext ct
+        assertEqual "plaintext mismatch" (Just ePlaintext) pt
+        testEncryptions ctx1s ctx1r xs
+
+    testExports ctx = mapM_ $ \Export{..} ->
+        assertEqual "export mismatch" (export ctx eContext eLength) eValue
 
 
 {- Properties -}
@@ -119,3 +187,27 @@ prop_auth_psk (SomeKEM kem) cipher (Info info) (Aad aad) (Pt pt) PskInfo{..} =
                     (ct, _)  = seal ctxS aad pt
                     (pt', _) = open ctxR aad ct
                  in (pt' == Just pt)
+
+{- Reference data -}
+
+allKems :: [SomeKEM]
+allKems =
+    [ SomeKEM (Proxy :: Proxy (DHKEM (ECGroup Curve_P256R1)))
+    , SomeKEM (Proxy :: Proxy (DHKEM (ECGroup Curve_X25519)))
+    , SomeKEM (Proxy :: Proxy (DHKEM (ECGroup Curve_X448)))
+    ]
+
+allKdfs :: [KDF]
+allKdfs = [ hkdf_sha256, hkdf_sha384, hkdf_sha512 ]
+
+allAeads :: [AEAD]
+allAeads = [ aead_aes128gcm, aead_aes256gcm, aead_chacha20poly1305 ]
+
+findKEM :: KemID -> Maybe SomeKEM
+findKEM kemId = find (\(SomeKEM e) -> kemID e == kemId) allKems
+
+findKDF :: KdfID -> Maybe KDF
+findKDF kdfId = find (\e -> kdfID e == kdfId) allKdfs
+
+findAEAD :: KdfID -> Maybe AEAD
+findAEAD aeadId = find (\e -> aeadID e == aeadId) allAeads
