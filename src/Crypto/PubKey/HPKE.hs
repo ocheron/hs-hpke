@@ -117,20 +117,21 @@ keySchedule kem cipher zz info mPskInfo bPkS = do
         pskID = maybe default_pskID snd mPskInfo
 
         pskID_hash = withKDF kdf (labeledExtract "pskID_hash" pskID) B.convert
-        info_hash  = withKDF kdf (labeledExtract "info" info) B.convert
+        info_hash  = withKDF kdf (labeledExtract "info_hash" info) B.convert
         csuite     = be16 kemId . be16 kdfId . be16 aeadId
         context    = csuite [ B.singleton mode, pskID_hash, info_hash ]
 
         withPSK    = withKDF kdf $ labeledExtract "psk_hash" psk
         withSecret = withKDF kdf $ withPSK $ \psk_hash ->
-            labeledExtractSalt psk_hash "zz" zz
+            labeledExtractSalt psk_hash "secret" zz
 
         key        = withSecret $ \s -> labeledExpand s "key" context nk
         nonce      = withSecret $ \s -> labeledExpand s "nonce" context nn
         exporter   = withSecret $ \s -> labeledExpand s "exp" context nh
 
         exportF :: ByteArray out => ByteString -> Int -> out
-        exportF = withKDF kdf (extractSkip (exporter :: Bytes)) expand
+        exportF = withKDF kdf (extractSkip (exporter :: Bytes)) $ \s ->
+            labeledExpand s "sec" . (:[])
 
     return Context { ctxEncrypt  = \f -> f (aeadEncryptF aead key)
                    , ctxDecrypt  = \f -> f (aeadDecryptF aead key)
