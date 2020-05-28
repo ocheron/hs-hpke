@@ -105,7 +105,7 @@ instance EllipticCurveGroup Curve_P256R1 where
 
 instance EllipticCurveGroup Curve_X25519 where
     ecKemID _ = 0x0020
-    ecName _  = "Curve25519"
+    ecName _  = "X25519"
     ecKDF _   = hkdf_sha256
 
     ecMarshalPrivate _ = B.convert
@@ -116,7 +116,7 @@ instance EllipticCurveGroup Curve_X25519 where
 
 instance EllipticCurveGroup Curve_X448 where
     ecKemID _ = 0x0021
-    ecName _  = "Curve448"
+    ecName _  = "X448"
     ecKDF _   = hkdf_sha512
 
     ecMarshalPrivate _ = B.convert
