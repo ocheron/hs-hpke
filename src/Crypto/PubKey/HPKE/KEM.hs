@@ -13,6 +13,7 @@ module Crypto.PubKey.HPKE.KEM
     , Enc
     , KEM(..)
     , AuthKEM(..)
+    , StaticKEM(..)
     ) where
 
 import Data.Kind (Type)
@@ -44,19 +45,6 @@ class KEM kem where
 
     -- | Return the name of the KEM.
     kemName :: proxy kem -> String
-
-    -- | Produce a fixed-length octet string encoding the private key @sk@.
-    marshalPrivate :: ByteArray ba
-                   => proxy kem
-                   -> KEMPrivate kem
-                   -> ba
-
-    -- | Parse a fixed-length octet string containing a private key and return
-    -- the key pair.
-    unmarshalPrivate :: ByteArray ba
-                     => proxy kem
-                     -> ba
-                     -> CryptoFailable (KEMPrivate kem, KEMPublic kem)
 
     -- | Generate a random key pair.
     generateKeyPair :: MonadRandom r
@@ -112,3 +100,19 @@ class KEM kem => AuthKEM kem where
               -> KEMPublic kem
               -> KEMPublic kem
               -> CryptoFailable Zz
+
+-- | A KEM supporting static keys.
+class KEM kem => StaticKEM kem where
+
+    -- | Produce a fixed-length octet string encoding the private key @sk@.
+    marshalPrivate :: ByteArray ba
+                   => proxy kem
+                   -> KEMPrivate kem
+                   -> ba
+
+    -- | Parse a fixed-length octet string containing a private key and return
+    -- the key pair.
+    unmarshalPrivate :: ByteArray ba
+                     => proxy kem
+                     -> ba
+                     -> CryptoFailable (KEMPrivate kem, KEMPublic kem)

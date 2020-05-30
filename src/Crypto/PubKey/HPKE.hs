@@ -75,10 +75,13 @@ module Crypto.PubKey.HPKE
     , Enc
     , KEM(..)
     , AuthKEM(..)
+    , StaticKEM(..)
     , DHKEM
     , GroupKEM
+    , GroupStaticKEM
     , ECGroup
     , EllipticCurveGroup
+    , EllipticCurveStaticGroup
     -- ** KDF
     , KdfID
     , KDF

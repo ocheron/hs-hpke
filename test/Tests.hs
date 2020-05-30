@@ -32,6 +32,8 @@ instance Arbitrary SomeKEM where
 instance Show SomeKEM where
     show (SomeKEM kem) = kemName kem
 
+data SomeStaticKEM = forall kem . (AuthKEM kem, StaticKEM kem, Show (KEMPrivate kem), Show (KEMPublic kem)) => SomeStaticKEM (Proxy kem)
+
 main :: IO ()
 main = defaultMain $ testGroup "hpke"
     [ testCaseSteps "vectors" test_vectors
@@ -58,7 +60,7 @@ testVector step Vector{..} = do
         mKdf  = findKDF (fromIntegral vecKdfID)
         mAead = findAEAD (fromIntegral vecAeadID)
     case (mKem, mKdf, mAead) of
-        (Just (SomeKEM kem), Just kdf, Just aead) -> do
+        (Just (SomeStaticKEM kem), Just kdf, Just aead) -> do
             let cipher = Cipher kdf aead
                 name   = kemName kem ++ ", " ++ kdfName kdf
                                      ++ ", " ++ aeadName aead
@@ -193,8 +195,17 @@ prop_auth_psk (SomeKEM kem) cipher (Info info) (Aad aad) (Pt pt) PskInfo{..} =
 allKems :: [SomeKEM]
 allKems =
     [ SomeKEM (Proxy :: Proxy (DHKEM (ECGroup Curve_P256R1)))
+    , SomeKEM (Proxy :: Proxy (DHKEM (ECGroup Curve_P384R1)))
+    , SomeKEM (Proxy :: Proxy (DHKEM (ECGroup Curve_P521R1)))
     , SomeKEM (Proxy :: Proxy (DHKEM (ECGroup Curve_X25519)))
     , SomeKEM (Proxy :: Proxy (DHKEM (ECGroup Curve_X448)))
+    ]
+
+allStaticKems :: [SomeStaticKEM]
+allStaticKems =
+    [ SomeStaticKEM (Proxy :: Proxy (DHKEM (ECGroup Curve_P256R1)))
+    , SomeStaticKEM (Proxy :: Proxy (DHKEM (ECGroup Curve_X25519)))
+    , SomeStaticKEM (Proxy :: Proxy (DHKEM (ECGroup Curve_X448)))
     ]
 
 allKdfs :: [KDF]
@@ -203,8 +214,8 @@ allKdfs = [ hkdf_sha256, hkdf_sha384, hkdf_sha512 ]
 allAeads :: [AEAD]
 allAeads = [ aead_aes128gcm, aead_aes256gcm, aead_chacha20poly1305 ]
 
-findKEM :: KemID -> Maybe SomeKEM
-findKEM kemId = find (\(SomeKEM e) -> kemID e == kemId) allKems
+findKEM :: KemID -> Maybe SomeStaticKEM
+findKEM kemId = find (\(SomeStaticKEM e) -> kemID e == kemId) allStaticKems
 
 findKDF :: KdfID -> Maybe KDF
 findKDF kdfId = find (\e -> kdfID e == kdfId) allKdfs

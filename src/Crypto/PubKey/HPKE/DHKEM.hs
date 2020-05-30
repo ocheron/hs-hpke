@@ -11,6 +11,7 @@
 module Crypto.PubKey.HPKE.DHKEM
     ( DHKEM
     , GroupKEM(..)
+    , GroupStaticKEM(..)
     ) where
 
 import qualified Data.ByteArray as B
@@ -112,19 +113,6 @@ class GroupKEM group where
     -- | Type of private keys for the group.
     type GroupPrivate group :: Type
 
-    -- | Produce a fixed-length octet string encoding the private key @sk@.
-    groupMarshalPrivate :: ByteArray ba
-                        => proxy group
-                        -> GroupPrivate group
-                        -> ba
-
-    -- | Parse a fixed-length octet string containing a private key and return
-    -- the key pair.
-    groupUnmarshalPrivate :: ByteArray ba
-                          => proxy group
-                          -> ba
-                          -> CryptoFailable (GroupPrivate group, GroupPublic group)
-
     -- | Generate a random key pair.
     groupGenerateKeyPair :: MonadRandom r
                          => proxy group
@@ -149,6 +137,21 @@ class GroupKEM group where
                    -> ba
                    -> CryptoFailable (GroupPublic group)
 
+-- | Groups supporting DH-Based KEM with static keys.
+class GroupKEM group => GroupStaticKEM group where
+    -- | Produce a fixed-length octet string encoding the private key @sk@.
+    groupMarshalPrivate :: ByteArray ba
+                        => proxy group
+                        -> GroupPrivate group
+                        -> ba
+
+    -- | Parse a fixed-length octet string containing a private key and return
+    -- the key pair.
+    groupUnmarshalPrivate :: ByteArray ba
+                          => proxy group
+                          -> ba
+                          -> CryptoFailable (GroupPrivate group, GroupPublic group)
+
 instance GroupKEM group => KEM (DHKEM group) where
     kemID = groupKemID . unDHKEM
 
@@ -156,9 +159,6 @@ instance GroupKEM group => KEM (DHKEM group) where
     type KEMPrivate (DHKEM group) = GroupPrivate group
 
     kemName = groupKemName . unDHKEM
-
-    marshalPrivate = groupMarshalPrivate . unDHKEM
-    unmarshalPrivate = groupUnmarshalPrivate . unDHKEM
 
     generateKeyPair = groupGenerateKeyPair . unDHKEM
 
@@ -171,3 +171,7 @@ instance GroupKEM group => KEM (DHKEM group) where
 instance GroupKEM group => AuthKEM (DHKEM group) where
     authEncap = groupAuthEncap . unDHKEM
     authDecap = groupAuthDecap . unDHKEM
+
+instance GroupStaticKEM group => StaticKEM (DHKEM group) where
+    marshalPrivate = groupMarshalPrivate . unDHKEM
+    unmarshalPrivate = groupUnmarshalPrivate . unDHKEM

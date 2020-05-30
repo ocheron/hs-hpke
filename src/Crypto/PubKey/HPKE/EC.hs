@@ -11,6 +11,7 @@
 module Crypto.PubKey.HPKE.EC
     ( ECGroup
     , EllipticCurveGroup
+    , EllipticCurveStaticGroup
     ) where
 
 import qualified Data.ByteArray as B
@@ -48,6 +49,15 @@ class EllipticCurve curve => EllipticCurveGroup curve where
     -- | Return the KDF to use for DH-Based KEM with this curve.
     ecKDF :: proxy curve -> KDF
 
+    -- | Perform a non-interactive DH exchange using the private key @sk@ and
+    -- public key @pk@ to produce a Diffie-Hellman shared secret.
+    ecGetShared :: proxy curve
+                -> Point curve
+                -> Scalar curve
+                -> CryptoFailable SharedSecret
+
+-- | Elliptic curves to be used as a group for DHKEM and supporting static keys.
+class EllipticCurveGroup curve => EllipticCurveStaticGroup curve where
     -- | Produce a fixed-length octet string encoding the private key @sk@.
     ecMarshalPrivate :: ByteArray ba
                      => proxy curve
@@ -60,13 +70,6 @@ class EllipticCurve curve => EllipticCurveGroup curve where
                        => proxy curve
                        -> ba
                        -> CryptoFailable (Scalar curve, Point curve)
-
-    -- | Perform a non-interactive DH exchange using the private key @sk@ and
-    -- public key @pk@ to produce a Diffie-Hellman shared secret.
-    ecGetShared :: proxy curve
-                -> Point curve
-                -> Scalar curve
-                -> CryptoFailable SharedSecret
 
 -- | An elliptic curve as a Diffie-Hellman group.
 data ECGroup curve
@@ -82,9 +85,6 @@ instance EllipticCurveGroup curve => GroupKEM (ECGroup curve) where
     type GroupPublic (ECGroup curve) = Point curve
     type GroupPrivate (ECGroup curve) = Scalar curve
 
-    groupMarshalPrivate = ecMarshalPrivate . unECGroup
-    groupUnmarshalPrivate = ecUnmarshalPrivate . unECGroup
-
     groupGenerateKeyPair = ecGenerateKeyPair . unECGroup
 
     groupGetShared = ecGetShared . unECGroup
@@ -92,14 +92,33 @@ instance EllipticCurveGroup curve => GroupKEM (ECGroup curve) where
     groupMarshal = encodePoint . unECGroup
     groupUnmarshal = decodePoint . unECGroup
 
+instance EllipticCurveStaticGroup curve => GroupStaticKEM (ECGroup curve) where
+    groupMarshalPrivate = ecMarshalPrivate . unECGroup
+    groupUnmarshalPrivate = ecUnmarshalPrivate . unECGroup
+
 instance EllipticCurveGroup Curve_P256R1 where
     ecKemID _ = 0x0010
     ecName _  = "P-256"
     ecKDF _   = hkdf_sha256
 
+    ecGetShared = deriveDecryptHpke
+
+instance EllipticCurveStaticGroup Curve_P256R1 where
     ecMarshalPrivate _ = P256.scalarToBinary
     ecUnmarshalPrivate _ bs = build <$> P256.scalarFromBinary bs
       where build k = (k, P256.toPoint k)
+
+instance EllipticCurveGroup Curve_P384R1 where
+    ecKemID _ = 0x0011
+    ecName _  = "P-384"
+    ecKDF _   = hkdf_sha384
+
+    ecGetShared = deriveDecryptHpke
+
+instance EllipticCurveGroup Curve_P521R1 where
+    ecKemID _ = 0x0012
+    ecName _  = "P-521"
+    ecKDF _   = hkdf_sha512
 
     ecGetShared = deriveDecryptHpke
 
@@ -108,22 +127,24 @@ instance EllipticCurveGroup Curve_X25519 where
     ecName _  = "X25519"
     ecKDF _   = hkdf_sha256
 
+    ecGetShared = deriveDecrypt
+
+instance EllipticCurveStaticGroup Curve_X25519 where
     ecMarshalPrivate _ = B.convert
     ecUnmarshalPrivate _ bs = build <$> X25519.secretKey bs
       where build k = (k, X25519.toPublic k)
-
-    ecGetShared = deriveDecrypt
 
 instance EllipticCurveGroup Curve_X448 where
     ecKemID _ = 0x0021
     ecName _  = "X448"
     ecKDF _   = hkdf_sha512
 
+    ecGetShared = deriveDecrypt
+
+instance EllipticCurveStaticGroup Curve_X448 where
     ecMarshalPrivate _ = B.convert
     ecUnmarshalPrivate _ bs = build <$> X448.secretKey bs
       where build k = (k, X448.toPublic k)
-
-    ecGetShared = deriveDecrypt
 
 -- Variant of deriveDecrypt for NIST curves: the shared secret is the
 -- uncompressed encoding of the resulting point, not just the X coordinate.
