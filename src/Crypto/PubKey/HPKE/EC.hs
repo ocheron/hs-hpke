@@ -10,8 +10,8 @@
 {-# LANGUAGE TypeFamilies #-}
 module Crypto.PubKey.HPKE.EC
     ( ECGroup
-    , EllipticCurveGroup
-    , EllipticCurveStaticGroup
+    , EllipticCurveGroup(..)
+    , EllipticCurveStaticGroup(..)
     ) where
 
 import qualified Data.ByteArray as B
