@@ -2,12 +2,15 @@
 module Utils
     ( runDRG
     , arbitraryKeyPair
+    , fromCryptoPassed
     ) where
 
+import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck
 
 import Data.Word
 
+import Crypto.Error
 import Crypto.Random
 
 import Crypto.PubKey.HPKE
@@ -30,3 +33,8 @@ arbitraryKeyPair :: KEM kem
                  => proxy kem
                  -> Gen (KEMPrivate kem, KEMPublic kem)
 arbitraryKeyPair grp = runDRG (generateKeyPair grp)
+
+fromCryptoPassed :: Show a => CryptoFailable a -> IO a
+fromCryptoPassed (CryptoPassed r) = return r
+fromCryptoPassed result =
+    assertFailure ("Unexpected result: " ++ show result)

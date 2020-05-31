@@ -8,9 +8,10 @@ compiler: ghc-8.8 lts-15.13
 # options
 # option: alias x=y z=v
 option: cryptomin extradep=cryptonite-0.25 extradep=memory-0.14.18 extradep=basement-0.0.8
+option: tastymin extradep=tasty-hunit-0.10
 
 # builds
-build: ghc-8.0 cryptomin
+build: ghc-8.0 cryptomin tastymin
 build: ghc-8.2 cryptomin
 build: ghc-8.4
 build: ghc-8.6

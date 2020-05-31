@@ -78,25 +78,25 @@ testVector step Vector{..} = do
     -- ephemeral key.
     testBase name kem cipher = do
         step ("Base: " ++ name)
-        pairR <- throwCryptoErrorIO $ unmarshalPrivate kem vecSkRm
-        ctx <- throwCryptoErrorIO $ setupBaseR kem cipher vecEnc pairR vecInfo
+        pairR <- fromCryptoPassed $ unmarshalPrivate kem vecSkRm
+        ctx <- fromCryptoPassed $ setupBaseR kem cipher vecEnc pairR vecInfo
         testBoth ctx vecExports vecEncryptions
     testPSK name kem cipher psk pskID = do
         step ("PSK: " ++ name)
-        pairR <- throwCryptoErrorIO $ unmarshalPrivate kem vecSkRm
-        ctx <- throwCryptoErrorIO $ setupPSKR kem cipher vecEnc pairR vecInfo psk pskID
+        pairR <- fromCryptoPassed $ unmarshalPrivate kem vecSkRm
+        ctx <- fromCryptoPassed $ setupPSKR kem cipher vecEnc pairR vecInfo psk pskID
         testBoth ctx vecExports vecEncryptions
     testAuth name kem cipher skSm = do
         step ("Auth: " ++ name)
-        (_, pkS) <- throwCryptoErrorIO $ unmarshalPrivate kem skSm
-        pairR <- throwCryptoErrorIO $ unmarshalPrivate kem vecSkRm
-        ctx <- throwCryptoErrorIO $ setupAuthR kem cipher vecEnc pairR vecInfo pkS
+        (_, pkS) <- fromCryptoPassed $ unmarshalPrivate kem skSm
+        pairR <- fromCryptoPassed $ unmarshalPrivate kem vecSkRm
+        ctx <- fromCryptoPassed $ setupAuthR kem cipher vecEnc pairR vecInfo pkS
         testBoth ctx vecExports vecEncryptions
     testAuthPSK name kem cipher psk pskID skSm = do
         step ("AuthPSK: " ++ name)
-        (_, pkS) <- throwCryptoErrorIO $ unmarshalPrivate kem skSm
-        pairR <- throwCryptoErrorIO $ unmarshalPrivate kem vecSkRm
-        ctx <- throwCryptoErrorIO $ setupAuthPSKR kem cipher vecEnc pairR vecInfo psk pskID pkS
+        (_, pkS) <- fromCryptoPassed $ unmarshalPrivate kem skSm
+        pairR <- fromCryptoPassed $ unmarshalPrivate kem vecSkRm
+        ctx <- fromCryptoPassed $ setupAuthPSKR kem cipher vecEnc pairR vecInfo psk pskID pkS
         testBoth ctx vecExports vecEncryptions
 
     testBoth ctx exports encryptions =

@@ -48,7 +48,7 @@ tests:
     - hpke
     - aeson
     - tasty
-    - tasty-hunit
+    - tasty-hunit >= 0.10
     - tasty-quickcheck
     - text
     - zlib
