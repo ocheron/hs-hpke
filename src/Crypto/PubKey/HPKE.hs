@@ -9,11 +9,11 @@
 -- <https://tools.ietf.org/html/draft-irtf-cfrg-hpke draft-irtf-cfrg-hpke>.
 --
 -- HPKE schemes combine asymmetric and symmetric algorithms in an interoperable
--- standard to secure communications between a sender (S) and a receiver (R).
+-- standard to secure communications between a sender (S) and a recipient (R).
 --
 -- The sender prepares an encryption context @ctx@ by selecting a 'KEM', a 'KDF'
 -- and an 'AEAD' encryption algorithm.  In base mode, the context then just
--- needs the public key of the receiver @pkR@, and optional application-specific
+-- needs the public key of the recipient @pkR@, and optional app-specific
 -- information @info@ that influences symmetric encryption keys.  Context setup
 -- with 'setupBaseS' generates a random ephemeral key, and the corresponding
 -- encapsulated key @enc@ is returned along with the HPKE context:
@@ -22,7 +22,7 @@
 -- CryptoPassed (enc, ctx) <- 'setupBaseS' kem cipher pkR info
 -- @
 --
--- When in possession of the encapsulated key @enc@, the receiver calls
+-- When in possession of the encapsulated key @enc@, the recipient calls
 -- 'setupBaseR' to create an equivalent HPKE context with its key pair @(skR,
 -- pkR)@, and the same algorithm parameters that the sender used:
 --
@@ -30,17 +30,17 @@
 -- let CryptoPassed ctx = 'setupBaseR' kem cipher enc (skR, pkR) info
 -- @
 --
--- The sender and receiver can then perform one or more AEAD operations 'seal'
+-- The sender and recipient can then perform one or more AEAD operations 'seal'
 -- and 'open', all bound cryptographically to the context.  The HPKE context
 -- maintains an internal sequence number to generate appropriate nonces.  It is
 -- also possible to derive arbitrary secrets from the context with the 'export'
 -- function.
 --
 -- The base mode is similar to epheremal-static Diffie-Hellman and just needs
--- the asymmetric key of the receiver.  Other HPKE modes bring additional
+-- the asymmetric key of the recipient.  Other HPKE modes bring additional
 -- authentication with Pre-Shared Key, or sender asymmetric key, or both. Sender
 -- setup is replaced with functions 'setupPSKS', 'setupAuthS' or
--- 'setupAuthPSKS'.  Receiver setup uses instead functions 'setupPSKR',
+-- 'setupAuthPSKS'.  Recipient setup uses instead functions 'setupPSKR',
 -- 'setupAuthR', or 'setupAuthPSKR'.
 --
 {-# LANGUAGE OverloadedStrings #-}
