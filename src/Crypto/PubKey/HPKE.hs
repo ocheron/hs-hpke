@@ -186,6 +186,19 @@ keySchedule kem cipher zz info mPskInfo bPkS = do
     nk   = aeadNk aead
     nn   = aeadNn aead
 
+keyScheduleS :: (KEM kem, ByteArrayAccess info, ByteArray psk, ByteArray pskId)
+             => proxy kem
+             -> Cipher
+             -> (CryptoFailable Zz, Enc)
+             -> info
+             -> Maybe (psk, pskId)
+             -> Bool
+             -> CryptoFailable (Enc, Context)
+keyScheduleS kem cipher (mZz, enc) info mPskInfo bPkS = do
+    zz <- mZz
+    ctx <- keySchedule kem cipher zz info mPskInfo bPkS
+    return (enc, ctx)
+
 -- | Encryption to a public key.
 setupBaseS :: (KEM kem, ByteArrayAccess info, MonadRandom r)
            => proxy kem
@@ -194,11 +207,8 @@ setupBaseS :: (KEM kem, ByteArrayAccess info, MonadRandom r)
            -> info
            -> r (CryptoFailable (Enc, Context))
 setupBaseS kem cipher pkR info = do
-    (mZz, enc) <- encap kem pkR
-    return $ do
-        zz <- mZz
-        ctx <- keySchedule kem cipher zz info pskNone False
-        return (enc, ctx)
+    r <- encap kem pkR
+    return $ keyScheduleS kem cipher r info pskNone False
 
 -- | Decryption with a private key.
 setupBaseR :: (KEM kem, ByteArrayAccess info)
@@ -221,11 +231,8 @@ setupPSKS :: (KEM kem, ByteArrayAccess info, ByteArray psk, ByteArray pskId, Mon
           -> psk -> pskId
           -> r (CryptoFailable (Enc, Context))
 setupPSKS kem cipher pkR info psk pskId = do
-    (mZz, enc) <- encap kem pkR
-    return $ do
-        zz <- mZz
-        ctx <- keySchedule kem cipher zz info (Just (psk, pskId)) False
-        return (enc, ctx)
+    r <- encap kem pkR
+    return $ keyScheduleS kem cipher r info (Just (psk, pskId)) False
 
 -- | Decryption with a private key using Pre-Shared Key authentication.
 setupPSKR :: (KEM kem, ByteArrayAccess info, ByteArray psk, ByteArray pskId)
@@ -249,11 +256,8 @@ setupAuthS :: (AuthKEM kem, ByteArrayAccess info, MonadRandom r)
            -> (KEMPrivate kem, KEMPublic kem)
            -> r (CryptoFailable (Enc, Context))
 setupAuthS kem cipher pkR info (skS, pkS) = do
-    (mZz, enc) <- authEncap kem pkR skS pkS
-    return $ do
-        zz <- mZz
-        ctx <- keySchedule kem cipher zz info pskNone True
-        return (enc, ctx)
+    r <- authEncap kem pkR skS pkS
+    return $ keyScheduleS kem cipher r info pskNone True
 
 -- | Decryption with a private key using Asymmetric Key authentication.
 setupAuthR :: (AuthKEM kem, ByteArrayAccess info)
@@ -279,11 +283,8 @@ setupAuthPSKS :: (AuthKEM kem, ByteArrayAccess info, ByteArray psk, ByteArray ps
               -> (KEMPrivate kem, KEMPublic kem)
               -> r (CryptoFailable (Enc, Context))
 setupAuthPSKS kem cipher pkR info psk pskId (skS, pkS) = do
-    (mZz, enc) <- authEncap kem pkR skS pkS
-    return $ do
-        zz <- mZz
-        ctx <- keySchedule kem cipher zz info (Just (psk, pskId)) True
-        return (enc, ctx)
+    r <- authEncap kem pkR skS pkS
+    return $ keyScheduleS kem cipher r info (Just (psk, pskId)) True
 
 -- | Decryption with a private key using authentication with both a PSK and an
 -- Asymmetric Key.
