@@ -32,9 +32,10 @@
 --
 -- The sender and recipient can then perform one or more AEAD operations 'seal'
 -- and 'open', all bound cryptographically to the context.  The HPKE context
--- maintains an internal sequence number to generate appropriate nonces.  It is
--- also possible to derive arbitrary secrets from the context with the 'export'
--- function.
+-- maintains an internal sequence number to generate appropriate nonces.
+-- Consecutive sender and recipient operations must be performed in same order
+-- on both sides.  From the HPKE context it is also possible to derive arbitrary
+-- secrets with the 'export' function.
 --
 -- The base mode is similar to epheremal-static Diffie-Hellman and just needs
 -- the asymmetric key of the recipient.  Other HPKE modes bring additional
