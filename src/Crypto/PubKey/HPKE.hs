@@ -68,6 +68,7 @@ module Crypto.PubKey.HPKE
     , tagLength
     , seal
     , open
+    , skip
     , export
     -- * Algorithms and definitions
     -- ** KEM
@@ -337,6 +338,10 @@ open ctx aad ct = (, nextCtx) <$>
   where
     (nonce, nextCtx) = nextNonce ctx
     plainLen = B.length ct - ctxTagLen ctx
+
+-- | Increment the nonce counter without doing any AEAD operation.
+skip :: Context -> Context
+skip = snd . nextNonce
 
 incbe :: NonceAEAD -> Maybe NonceAEAD
 incbe bs =
