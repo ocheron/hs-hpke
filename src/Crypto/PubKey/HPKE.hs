@@ -111,6 +111,7 @@ import Crypto.Random
 
 import Crypto.PubKey.HPKE.AEAD
 import Crypto.PubKey.HPKE.Cipher
+import Crypto.PubKey.HPKE.Context
 import Crypto.PubKey.HPKE.DHKEM
 import Crypto.PubKey.HPKE.EC
 import Crypto.PubKey.HPKE.KDF
@@ -120,16 +121,6 @@ import Crypto.PubKey.HPKE.Imports
 
 
 {- Setup -}
-
--- | HPKE context
-data Context = Context
-    { ctxEncrypt  :: forall aad ba a . (ByteArrayAccess aad, ByteArray ba) => (RunAEAD aad ba -> a) -> a
-    , ctxDecrypt  :: forall aad ba a . (ByteArrayAccess aad, ByteArray ba) => (RunAEAD aad ba -> a) -> a
-    , ctxTagLen   :: Int
-    , ctxNonce    :: NonceAEAD
-    , ctxExport   :: forall out . ByteArray out => ByteString -> Int -> out
-    , ctxSeq      :: NonceAEAD
-    }
 
 pskNone :: Maybe (Bytes, Bytes)
 pskNone = Nothing
@@ -308,11 +299,6 @@ setupAuthPSKR kem cipher enc (skR, pkR) info psk pskId pkS = do
 tagLength :: Context -> Int
 tagLength = ctxTagLen
 
-nextNonce :: Context -> (NonceAEAD, Context)
-nextNonce ctx =
-    let nextSeq = fromJust "HPKE nonce overflow" $ incbe (ctxSeq ctx)
-     in (ctxSeq ctx `B.xor` ctxNonce ctx, ctx { ctxSeq = nextSeq })
-
 -- | Encrypt and authenticate plaintext @pt@ with associated data @aad@ and
 -- using the HPKE context.  Returns a new context to be used for the next
 -- encryption.
@@ -343,20 +329,6 @@ open ctx aad ct = (, nextCtx) <$>
 -- | Increment the nonce counter without doing any AEAD operation.
 skip :: Context -> Context
 skip = snd . nextNonce
-
-incbe :: NonceAEAD -> Maybe NonceAEAD
-incbe bs =
-    case go 1 (B.unpack bs) of
-        (0, newBytes) -> Just (B.pack newBytes)
-        _             -> Nothing
-  where
-    go a []     = (a, [])
-    go a (i:is) = let { (b, os) = go a is; (c, o) = b `add` i } in (c, o:os)
-
-    add x y = let d = promote x + promote y in (demote $ d `shiftR` 8, demote d)
-
-    promote = fromIntegral :: Word8 -> Word16
-    demote  = fromIntegral :: Word16 -> Word8
 
 
 {- Secret Export -}
