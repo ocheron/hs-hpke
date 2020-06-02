@@ -44,6 +44,7 @@
 -- 'setupAuthPSKS'.  Recipient setup uses instead functions 'setupPSKR',
 -- 'setupAuthR', or 'setupAuthPSKR'.
 --
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TupleSections #-}
@@ -51,6 +52,7 @@ module Crypto.PubKey.HPKE
     (
     -- * Creating an HPKE context
       Context
+    , Role(..)
     , Cipher(..)
     -- ** Encryption to a Public Key
     , setupBaseS
@@ -132,7 +134,7 @@ keySchedule :: (KEM kem, ByteArrayAccess info, ByteArray psk, ByteArray pskId)
             -> info
             -> Maybe (psk, pskId)
             -> Bool
-            -> CryptoFailable Context
+            -> CryptoFailable (Context r)
 keySchedule kem cipher zz info mPskInfo bPkS = do
     let kemId  = kemID kem
         kdfId  = kdfID kdf
@@ -184,7 +186,7 @@ keyScheduleS :: (KEM kem, ByteArrayAccess info, ByteArray psk, ByteArray pskId)
              -> info
              -> Maybe (psk, pskId)
              -> Bool
-             -> CryptoFailable (Enc, Context)
+             -> CryptoFailable (Enc, Context r)
 keyScheduleS kem cipher (mZz, enc) info mPskInfo bPkS = do
     zz <- mZz
     ctx <- keySchedule kem cipher zz info mPskInfo bPkS
@@ -196,7 +198,7 @@ setupBaseS :: (KEM kem, ByteArrayAccess info, MonadRandom r)
            -> Cipher
            -> KEMPublic kem
            -> info
-           -> r (CryptoFailable (Enc, Context))
+           -> r (CryptoFailable (Enc, Context 'Sender))
 setupBaseS kem cipher pkR info = do
     r <- encap kem pkR
     return $ keyScheduleS kem cipher r info pskNone False
@@ -208,7 +210,7 @@ setupBaseR :: (KEM kem, ByteArrayAccess info)
            -> Enc
            -> (KEMPrivate kem, KEMPublic kem)
            -> info
-           -> CryptoFailable Context
+           -> CryptoFailable (Context 'Recipient)
 setupBaseR kem cipher enc (skR, pkR) info = do
     zz <- decap kem enc skR pkR
     keySchedule kem cipher zz info pskNone False
@@ -220,7 +222,7 @@ setupPSKS :: (KEM kem, ByteArrayAccess info, ByteArray psk, ByteArray pskId, Mon
           -> KEMPublic kem
           -> info
           -> psk -> pskId
-          -> r (CryptoFailable (Enc, Context))
+          -> r (CryptoFailable (Enc, Context 'Sender))
 setupPSKS kem cipher pkR info psk pskId = do
     r <- encap kem pkR
     return $ keyScheduleS kem cipher r info (Just (psk, pskId)) False
@@ -233,7 +235,7 @@ setupPSKR :: (KEM kem, ByteArrayAccess info, ByteArray psk, ByteArray pskId)
           -> (KEMPrivate kem, KEMPublic kem)
           -> info
           -> psk -> pskId
-          -> CryptoFailable Context
+          -> CryptoFailable (Context 'Recipient)
 setupPSKR kem cipher enc (skR, pkR) info psk pskId = do
     zz <- decap kem enc skR pkR
     keySchedule kem cipher zz info (Just (psk, pskId)) False
@@ -245,7 +247,7 @@ setupAuthS :: (AuthKEM kem, ByteArrayAccess info, MonadRandom r)
            -> KEMPublic kem
            -> info
            -> (KEMPrivate kem, KEMPublic kem)
-           -> r (CryptoFailable (Enc, Context))
+           -> r (CryptoFailable (Enc, Context 'Sender))
 setupAuthS kem cipher pkR info (skS, pkS) = do
     r <- authEncap kem pkR skS pkS
     return $ keyScheduleS kem cipher r info pskNone True
@@ -258,7 +260,7 @@ setupAuthR :: (AuthKEM kem, ByteArrayAccess info)
            -> (KEMPrivate kem, KEMPublic kem)
            -> info
            -> KEMPublic kem
-           -> CryptoFailable Context
+           -> CryptoFailable (Context 'Recipient)
 setupAuthR kem cipher enc (skR, pkR) info pkS = do
     zz <- authDecap kem enc skR pkR pkS
     keySchedule kem cipher zz info pskNone True
@@ -272,7 +274,7 @@ setupAuthPSKS :: (AuthKEM kem, ByteArrayAccess info, ByteArray psk, ByteArray ps
               -> info
               -> psk -> pskId
               -> (KEMPrivate kem, KEMPublic kem)
-              -> r (CryptoFailable (Enc, Context))
+              -> r (CryptoFailable (Enc, Context 'Sender))
 setupAuthPSKS kem cipher pkR info psk pskId (skS, pkS) = do
     r <- authEncap kem pkR skS pkS
     return $ keyScheduleS kem cipher r info (Just (psk, pskId)) True
@@ -287,7 +289,7 @@ setupAuthPSKR :: (AuthKEM kem, ByteArrayAccess info, ByteArray psk, ByteArray ps
               -> info
               -> psk -> pskId
               -> KEMPublic kem
-              -> CryptoFailable Context
+              -> CryptoFailable (Context 'Recipient)
 setupAuthPSKR kem cipher enc (skR, pkR) info psk pskId pkS = do
     zz <- authDecap kem enc skR pkR pkS
     keySchedule kem cipher zz info (Just (psk, pskId)) True
@@ -296,14 +298,14 @@ setupAuthPSKR kem cipher enc (skR, pkR) info psk pskId pkS = do
 {- AEAD -}
 
 -- | Return the length in bytes added to sealed content.
-tagLength :: Context -> Int
+tagLength :: Context r -> Int
 tagLength = ctxTagLen
 
 -- | Encrypt and authenticate plaintext @pt@ with associated data @aad@ and
 -- using the HPKE context.  Returns a new context to be used for the next
 -- encryption.
 seal :: (ByteArrayAccess aad, ByteArray ba)
-     => Context -> aad -> ba -> (ba, Context)
+     => Context 'Sender -> aad -> ba -> (ba, Context 'Sender)
 seal ctx aad pt =
     ctxEncrypt ctx $ \encryptF ->
         let (e, AuthTag authtag) = encryptF nonce pt aad
@@ -314,7 +316,7 @@ seal ctx aad pt =
 -- | Decrypt ciphertext @ct@ with associated data @aad@ and using the HPKE
 -- context.  Returns a new context to be used for the next decryption.
 open :: (ByteArrayAccess aad, ByteArray ba)
-     => Context -> aad -> ba -> (Maybe ba, Context)
+     => Context 'Recipient -> aad -> ba -> (Maybe ba, Context 'Recipient)
 open ctx aad ct = (, nextCtx) <$>
     ctxDecrypt ctx $ \decryptF -> do
         guard (plainLen >= 0)
@@ -327,7 +329,7 @@ open ctx aad ct = (, nextCtx) <$>
     plainLen = B.length ct - ctxTagLen ctx
 
 -- | Increment the nonce counter without doing any AEAD operation.
-skip :: Context -> Context
+skip :: Context r -> Context r
 skip = snd . nextNonce
 
 
@@ -335,5 +337,5 @@ skip = snd . nextNonce
 
 -- | Produce a secret derived from the internal exporter secret, specifying a
 -- context string and the desired length in bytes.
-export :: ByteArray out => Context -> ByteString -> Int -> out
+export :: ByteArray out => Context r -> ByteString -> Int -> out
 export = ctxExport

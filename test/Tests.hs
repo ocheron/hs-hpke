@@ -13,6 +13,7 @@ import Crypto.ECC
 import Crypto.Error
 
 import Crypto.PubKey.HPKE as HPKE
+import Crypto.PubKey.HPKE.Internal (changeRole)
 
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -21,7 +22,7 @@ import Test.Tasty.QuickCheck
 import Utils
 import Vectors
 
-instance Show HPKE.Context where
+instance Show (HPKE.Context r) where
     show _ = "hpke-context"
 
 data SomeKEM = forall kem . (AuthKEM kem, Show (KEMPrivate kem), Show (KEMPublic kem)) => SomeKEM (Proxy kem)
@@ -99,8 +100,8 @@ testVector step Vector{..} = do
         ctx <- fromCryptoPassed $ setupAuthPSKR kem cipher vecEnc pairR vecInfo psk pskID pkS
         testBoth ctx vecExports vecEncryptions
 
-    testBoth ctx exports encryptions =
-        testEncryptions ctx ctx encryptions >> testExports ctx exports
+    testBoth ctx exports encryptions = testExports ctx exports >>
+        testEncryptions (changeRole ctx) ctx encryptions
 
     testEncryptions _ _ [] = return ()
     testEncryptions ctx0s ctx0r (Encryption{..} : xs) = do

@@ -5,14 +5,16 @@
 -- Stability   : experimental
 -- Portability : unknown
 --
--- Internal HPKE classes.
+-- Internal HPKE classes, types and functions.
 --
 module Crypto.PubKey.HPKE.Internal
     ( GroupKEM(..)
     , GroupStaticKEM(..)
     , EllipticCurveGroup(..)
     , EllipticCurveStaticGroup(..)
+    , changeRole
     ) where
 
+import Crypto.PubKey.HPKE.Context
 import Crypto.PubKey.HPKE.DHKEM
 import Crypto.PubKey.HPKE.EC

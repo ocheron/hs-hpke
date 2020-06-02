@@ -5,20 +5,29 @@
 -- Stability   : experimental
 -- Portability : unknown
 --
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE RankNTypes #-}
 module Crypto.PubKey.HPKE.Context
     ( Context(..)
+    , Role(..)
+    , changeRole
     , nextNonce
     ) where
 
 import qualified Data.ByteArray as B
+import Data.Coerce
 
 import Crypto.PubKey.HPKE.AEAD
 import Crypto.PubKey.HPKE.Imports
 
 
+-- | Role in the HPKE exchange.
+data Role = Sender    -- ^ Initiate and encrypt
+          | Recipient -- ^ Verify and decrypt
+
 -- | HPKE context
-data Context = Context
+data Context (r :: Role) = Context
     { ctxEncrypt  :: forall aad ba a . (ByteArrayAccess aad, ByteArray ba) => (RunAEAD aad ba -> a) -> a
     , ctxDecrypt  :: forall aad ba a . (ByteArrayAccess aad, ByteArray ba) => (RunAEAD aad ba -> a) -> a
     , ctxTagLen   :: Int
@@ -27,7 +36,13 @@ data Context = Context
     , ctxSeq      :: NonceAEAD
     }
 
-nextNonce :: Context -> (NonceAEAD, Context)
+-- | Allow to change the role of an existing context.  This is a dangerous
+-- function.  Normally encryption is unidirectional from sender to recipient,
+-- otherwise it is more difficult to ensure that a nonce is not reused.
+changeRole :: Context rin -> Context rout
+changeRole = coerce
+
+nextNonce :: Context r -> (NonceAEAD, Context r)
 nextNonce ctx =
     let nextSeq = fromJust "HPKE nonce overflow" $ incbe (ctxSeq ctx)
      in (ctxSeq ctx `B.xor` ctxNonce ctx, ctx { ctxSeq = nextSeq })
