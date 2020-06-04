@@ -53,8 +53,8 @@ incbe bs =
         (0, newBytes) -> Just (B.pack newBytes)
         _             -> Nothing
   where
-    go a []     = (a, [])
-    go a (i:is) = let { (b, os) = go a is; (c, o) = b `add` i } in (c, o:os)
+    go a []     = a `seq` (a, [])
+    go a (i:is) = let { (b, os) = go a is; (c, o) = b `add` i } in c `seq` (c, o:os)
 
     add x y = let d = promote x + promote y in (demote $ d `shiftR` 8, demote d)
 

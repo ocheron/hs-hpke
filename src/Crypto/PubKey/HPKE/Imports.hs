@@ -43,7 +43,7 @@ import qualified Prelude as P
 be16 :: (ByteArray ba, P.Integral a) => a -> [ba] -> [ba]
 be16 val xs =
     let w16 = P.fromIntegral val :: Word16
-        len = unsafeCreate 2 (\p -> pokeByteOff p 0 (toBE w16))
+        len = w16 `P.seq` unsafeCreate 2 (\p -> pokeByteOff p 0 (toBE w16))
      in len : xs
 {-# INLINABLE be16 #-}
 
