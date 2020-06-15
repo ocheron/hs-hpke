@@ -19,6 +19,8 @@ import qualified Data.ByteArray as B
 
 import           Crypto.ECC
 import           Crypto.Error
+import           Crypto.Hash
+import           Crypto.KDF.HKDF
 import qualified Crypto.PubKey.Curve25519 as X25519
 import qualified Crypto.PubKey.Curve448 as X448
 import           Crypto.PubKey.ECIES
@@ -29,6 +31,7 @@ import Crypto.PubKey.HPKE.Cipher
 import Crypto.PubKey.HPKE.DHKEM
 import Crypto.PubKey.HPKE.KDF
 import Crypto.PubKey.HPKE.KEM
+import Crypto.PubKey.HPKE.Label
 import Crypto.PubKey.HPKE.Imports
 
 import Data.Proxy
@@ -121,6 +124,9 @@ instance EllipticCurveStaticGroup Curve_P256R1 where
     ecUnmarshalPrivate _ bs = build <$> P256.scalarFromBinary bs
       where build k = (k, P256.toPoint k)
 
+instance EllipticCurveDeriveGroup Curve_P256R1 where
+    ecDeriveKeyPair prx = pDeriveKeyPair prx "p-256" 32
+
 instance EllipticCurveGroup Curve_P384R1 where
     ecKemID _ = 0x0011
     ecName _  = "P-384"
@@ -147,6 +153,9 @@ instance EllipticCurveStaticGroup Curve_X25519 where
     ecUnmarshalPrivate _ bs = build <$> X25519.secretKey bs
       where build k = (k, X25519.toPublic k)
 
+instance EllipticCurveDeriveGroup Curve_X25519 where
+    ecDeriveKeyPair prx = xDeriveKeyPair prx "x25519" 32
+
 instance EllipticCurveGroup Curve_X448 where
     ecKemID _ = 0x0021
     ecName _  = "X448"
@@ -159,6 +168,9 @@ instance EllipticCurveStaticGroup Curve_X448 where
     ecUnmarshalPrivate _ bs = build <$> X448.secretKey bs
       where build k = (k, X448.toPublic k)
 
+instance EllipticCurveDeriveGroup Curve_X448 where
+    ecDeriveKeyPair prx = xDeriveKeyPair prx "x448" 56
+
 -- Variant of deriveDecrypt for NIST curves: the shared secret is the
 -- uncompressed encoding of the resulting point, not just the X coordinate.
 deriveDecryptHpke :: (EllipticCurveDH curve, EllipticCurveArith curve)
@@ -169,3 +181,46 @@ deriveDecryptHpke :: (EllipticCurveDH curve, EllipticCurveArith curve)
 deriveDecryptHpke prx p s = do
     _ <- deriveDecrypt prx p s  -- just for validation
     return $ SharedSecret $ encodePoint prx $ pointSmul prx s p
+
+xDeriveKeyPair :: (EllipticCurveStaticGroup curve, ByteArrayAccess ikm)
+               => proxy curve
+               -> ByteString
+               -> Int
+               -> ikm
+               -> (Scalar curve, Point curve)
+xDeriveKeyPair prx desc nsk ikm =
+    withKDF (ecKDF prx) (labeledExtract desc ikm) $ \prk ->
+        build prx (expand prk (B.empty :: ByteString) nsk)
+  where
+    build :: EllipticCurveStaticGroup curve
+          => proxy curve -> ScrubbedBytes -> (Scalar curve, Point curve)
+    build c = throwCryptoError . ecUnmarshalPrivate c
+
+pDeriveKeyPair :: (EllipticCurveScalarRange curve, ByteArrayAccess ikm)
+               => proxy curve
+               -> ByteString
+               -> Int
+               -> ikm
+               -> (Scalar curve, Point curve)
+pDeriveKeyPair prx' desc nsk ikm =
+    withKDF (ecKDF prx') (labeledExtract desc ikm) (go prx' 1)
+  where
+    go :: (EllipticCurveScalarRange curve, HashAlgorithm hash)
+       => proxy curve -> Word8 -> PRK hash -> (Scalar curve, Point curve)
+    go prx cnt prk
+        | scalarIsInRange prx (fst pair) = pair
+        | otherwise = go prx (succ cnt) prk
+      where
+        label = "candidate " `B.snoc` cnt
+        bytes = expand prk (label :: ByteString) nsk :: ScrubbedBytes
+        pair  = throwCryptoError (ecUnmarshalPrivate prx bytes)
+
+class EllipticCurveStaticGroup curve => EllipticCurveScalarRange curve where
+    scalarIsInRange :: proxy curve -> Scalar curve -> Bool
+
+instance EllipticCurveScalarRange Curve_P256R1 where
+    scalarIsInRange _ s =
+        not (P256.scalarIsZero s) && P256.scalarCmp s n == LT
+      where
+        n = throwCryptoError . P256.scalarFromInteger $
+            0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551
