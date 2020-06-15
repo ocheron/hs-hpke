@@ -107,8 +107,11 @@ testVector step Vector{..} = do
     testEncryptions ctx0s ctx0r (Encryption{..} : xs) = do
         let (ct, ctx1s) = seal ctx0s eAAD ePlaintext
             (pt, ctx1r) = open ctx0r eAAD eCiphertext
+            difference  = B.length eCiphertext - B.length ePlaintext
         assertEqual "ciphertext mismatch" eCiphertext ct
         assertEqual "plaintext mismatch" (Just ePlaintext) pt
+        assertEqual "tag length mismatch"
+            (difference, difference) (tagLength ctx0s, tagLength ctx0r)
         testEncryptions ctx1s ctx1r xs
 
     testExports ctx = mapM_ $ \Export{..} ->
