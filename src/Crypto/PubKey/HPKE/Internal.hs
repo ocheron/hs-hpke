@@ -10,8 +10,10 @@
 module Crypto.PubKey.HPKE.Internal
     ( GroupKEM(..)
     , GroupStaticKEM(..)
+    , GroupDeriveKEM(..)
     , EllipticCurveGroup(..)
     , EllipticCurveStaticGroup(..)
+    , EllipticCurveDeriveGroup(..)
     , changeRole
     ) where
 

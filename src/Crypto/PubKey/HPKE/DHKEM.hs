@@ -12,6 +12,7 @@ module Crypto.PubKey.HPKE.DHKEM
     ( DHKEM
     , GroupKEM(..)
     , GroupStaticKEM(..)
+    , GroupDeriveKEM(..)
     ) where
 
 import qualified Data.ByteArray as B
@@ -152,6 +153,14 @@ class GroupKEM group => GroupStaticKEM group where
                           -> ba
                           -> CryptoFailable (GroupPrivate group, GroupPublic group)
 
+-- | Groups supporting DH-Based KEM with key derivation.
+class GroupKEM group => GroupDeriveKEM group where
+    -- | Derive a key pair from the byte string @ikm@.
+    groupDeriveKeyPair :: ByteArrayAccess ikm
+                       => proxy group
+                       -> ikm
+                       -> (GroupPrivate group, GroupPublic group)
+
 instance GroupKEM group => KEM (DHKEM group) where
     kemID = groupKemID . unDHKEM
 
@@ -175,3 +184,6 @@ instance GroupKEM group => AuthKEM (DHKEM group) where
 instance GroupStaticKEM group => StaticKEM (DHKEM group) where
     marshalPrivate = groupMarshalPrivate . unDHKEM
     unmarshalPrivate = groupUnmarshalPrivate . unDHKEM
+
+instance GroupDeriveKEM group => DeriveKEM (DHKEM group) where
+    deriveKeyPair = groupDeriveKeyPair . unDHKEM

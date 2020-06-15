@@ -12,6 +12,7 @@ module Crypto.PubKey.HPKE.EC
     ( ECGroup
     , EllipticCurveGroup(..)
     , EllipticCurveStaticGroup(..)
+    , EllipticCurveDeriveGroup(..)
     ) where
 
 import qualified Data.ByteArray as B
@@ -71,6 +72,15 @@ class EllipticCurveGroup curve => EllipticCurveStaticGroup curve where
                        -> ba
                        -> CryptoFailable (Scalar curve, Point curve)
 
+-- | Elliptic curves to be used as a group for DHKEM and supporting key
+-- derivation.
+class EllipticCurveGroup curve => EllipticCurveDeriveGroup curve where
+    -- | Derive a key pair from the byte string @ikm@.
+    ecDeriveKeyPair :: ByteArrayAccess ikm
+                    => proxy curve
+                    -> ikm
+                    -> (Scalar curve, Point curve)
+
 -- | An elliptic curve as a Diffie-Hellman group.
 data ECGroup curve
 
@@ -95,6 +105,9 @@ instance EllipticCurveGroup curve => GroupKEM (ECGroup curve) where
 instance EllipticCurveStaticGroup curve => GroupStaticKEM (ECGroup curve) where
     groupMarshalPrivate = ecMarshalPrivate . unECGroup
     groupUnmarshalPrivate = ecUnmarshalPrivate . unECGroup
+
+instance EllipticCurveDeriveGroup curve => GroupDeriveKEM (ECGroup curve) where
+    groupDeriveKeyPair = ecDeriveKeyPair . unECGroup
 
 instance EllipticCurveGroup Curve_P256R1 where
     ecKemID _ = 0x0010

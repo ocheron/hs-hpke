@@ -14,6 +14,7 @@ module Crypto.PubKey.HPKE.KEM
     , KEM(..)
     , AuthKEM(..)
     , StaticKEM(..)
+    , DeriveKEM(..)
     ) where
 
 import Data.Kind (Type)
@@ -116,3 +117,12 @@ class KEM kem => StaticKEM kem where
                      => proxy kem
                      -> ba
                      -> CryptoFailable (KEMPrivate kem, KEMPublic kem)
+
+-- | A KEM supporting key derivation.
+class KEM kem => DeriveKEM kem where
+
+    -- | Derive a key pair from the byte string @ikm@.
+    deriveKeyPair :: ByteArrayAccess ikm
+                  => proxy kem
+                  -> ikm
+                  -> (KEMPrivate kem, KEMPublic kem)
