@@ -38,6 +38,8 @@ data SomeStaticKEM = forall kem . (AuthKEM kem, StaticKEM kem, Show (KEMPrivate 
 main :: IO ()
 main = defaultMain $ testGroup "hpke"
     [ testCaseSteps "vectors" test_vectors
+    , testGroup "key-derivation vectors" $
+        map testDerivation derivationVectors
     , testGroup "properties"
         [ testProperty "Base" prop_base
         , testProperty "PSK" prop_psk
@@ -116,6 +118,46 @@ testVector step Vector{..} = do
 
     testExports ctx = mapM_ $ \Export{..} ->
         assertEqual "export mismatch" (export ctx eContext eLength) eValue
+
+
+{- Key Derivation -}
+
+data Derivation = forall kem . (StaticKEM kem, DeriveKEM kem) => Derivation
+    { derivKem  :: Proxy kem
+    , derivIkm  :: B.ByteString
+    , derivSkRm :: B.ByteString
+    , derivPkRm :: B.ByteString
+    }
+
+derivationVectors :: [Derivation]
+derivationVectors =
+    [ Derivation
+        { derivKem  = Proxy :: Proxy (DHKEM (ECGroup Curve_P256R1))
+        , derivIkm  = ""
+        , derivSkRm = "\xc5\x24\x6e\x15\x54\x30\xb6\xde\xd4\x0c\x82\xaf\x29\x98\xff\x8b\x4b\x1e\x9a\x93\x21\xf7\x8d\x21\x97\x2b\x26\x18\x18\xce\xd9\xec"
+        , derivPkRm = "\x04\xc2\x1e\xbf\x2c\x66\x09\x1a\x81\xc8\x43\xa8\xf6\x47\x1f\x71\xfc\x8f\x79\x40\x75\x3b\x1a\xd0\x0e\x98\xa9\xa0\x9c\x7c\x32\x5a\xf5\xe7\x84\x22\x13\x5e\x0b\x90\x8a\x1f\x6c\x8d\x72\xe0\x4d\xcb\x50\xb7\x3a\x43\xf5\x3c\x6d\x34\xa0\x45\x73\xfb\xcf\x94\x00\xfa\xc7"
+        }
+    , Derivation
+        { derivKem  = Proxy :: Proxy (DHKEM (ECGroup Curve_X25519))
+        , derivIkm  = ""
+        , derivSkRm = "\x5e\x87\xe0\x3d\xf5\x8d\xa4\xee\xf1\x68\x9c\xc6\x46\xcc\x1d\x15\x04\xd5\x65\x86\x9a\xed\x3c\x53\xec\x45\xba\x72\xf8\xdd\x51\x49"
+        , derivPkRm = "\x6a\xb8\x1e\xa7\x58\x83\x38\x43\x97\x43\x97\x09\x19\xbe\xdc\x79\xa7\x53\xd3\x87\x76\x4c\x8b\xbb\xa2\x13\xa8\xbd\xcb\x3e\xd7\x0d"
+        }
+    , Derivation
+        { derivKem  = Proxy :: Proxy (DHKEM (ECGroup Curve_X448))
+        , derivIkm  = ""
+        , derivSkRm = "\x21\x4d\xb0\x2f\x49\x0e\x8c\xdb\x32\xa6\x45\x2b\xe6\xcd\x80\x8f\xc0\x6b\xae\x64\x29\x53\x44\xaa\x20\x51\xba\x2c\x78\xb2\xec\x83\x1d\x95\x06\xb5\x97\x99\xe4\x1d\x9b\xb2\x5e\x2a\xd7\x56\x4f\xbd\x6e\x84\x54\x09\x53\x64\xc2\x48"
+        , derivPkRm = "\x32\x59\x53\x80\xe3\xa5\xb7\xc3\xc4\x5c\x13\xf7\x55\x68\x4a\x7d\xa5\xbe\xd0\x5d\xe1\x53\xdd\x0f\x04\xfc\x4a\xe5\x98\x3a\xe2\x03\x53\x3c\x5c\x8d\xf0\xa2\xba\x6e\x53\x43\x84\x22\xf1\xd3\x56\x1c\xf1\x5d\x01\x65\xb8\x97\x89\x01"
+        }
+    ]
+
+testDerivation :: Derivation -> TestTree
+testDerivation Derivation{..} = testCase (kemName derivKem) $ do
+    let (sk, pk) = deriveKeyPair derivKem derivIkm
+        skRm     = marshalPrivate derivKem sk
+        pkRm     = marshal derivKem pk
+    assertEqual "private key mismatch" derivSkRm skRm
+    assertEqual "public key mismatch" derivPkRm pkRm
 
 
 {- Properties -}
