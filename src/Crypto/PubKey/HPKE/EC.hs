@@ -220,7 +220,4 @@ class EllipticCurveStaticGroup curve => EllipticCurveScalarRange curve where
 
 instance EllipticCurveScalarRange Curve_P256R1 where
     scalarIsInRange _ s =
-        not (P256.scalarIsZero s) && P256.scalarCmp s n == LT
-      where
-        n = throwCryptoError . P256.scalarFromInteger $
-            0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551
+        not (P256.scalarIsZero s) && P256.scalarCmp s P256.scalarN == LT

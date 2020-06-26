@@ -23,7 +23,7 @@ description: |
 dependencies:
 - base >= 4.7 && < 5
 - bytestring
-- cryptonite >= 0.25
+- cryptonite >= 0.27
 
 ghc-options:
 - -Wall
