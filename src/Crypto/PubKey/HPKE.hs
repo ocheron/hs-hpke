@@ -149,14 +149,14 @@ keySchedule kem cipher zz info mPskInfo bPkS = do
         psk   = maybe default_psk fst mPskInfo
         pskID = maybe default_pskID snd mPskInfo
 
-        pskID_hash = withKDF kdf (labeledExtract "pskID_hash" pskID) B.convert
-        info_hash  = withKDF kdf (labeledExtract "info_hash" info) B.convert
+        pskID_hash = withKDF kdf (labeledExtract ("pskID_hash" :) pskID) B.convert
+        info_hash  = withKDF kdf (labeledExtract ("info_hash" :) info) B.convert
         csuite     = be16 kemId . be16 kdfId . be16 aeadId
         context    = csuite [ B.singleton mode, pskID_hash, info_hash ]
 
-        withPSK    = withKDF kdf $ labeledExtract "psk_hash" psk
+        withPSK    = withKDF kdf $ labeledExtract ("psk_hash" :) psk
         withSecret = withKDF kdf $ withPSK $ \psk_hash ->
-            labeledExtractSalt psk_hash "secret" zz
+            labeledExtractSalt psk_hash ("secret" :) zz
 
         key        = withSecret $ \s -> labeledExpand s "key" context nk
         nonce      = withSecret $ \s -> labeledExpand s "nonce" context nn

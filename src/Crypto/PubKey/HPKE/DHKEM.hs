@@ -37,7 +37,7 @@ unDHKEM _ = Proxy
 
 extractAndExpand :: KDF -> SharedSecret -> [ByteString] -> Zz
 extractAndExpand kdf dh kemContext =
-    withKDF kdf (labeledExtract "dh" dh) $ \prk ->
+    withKDF kdf (labeledExtract ("dh" :) dh) $ \prk ->
         labeledExpand prk "prk" kemContext nzz
   where nzz = kdfNh kdf
 

@@ -20,14 +20,14 @@ import Crypto.KDF.HKDF
 import Crypto.PubKey.HPKE.Imports
 
 labeledExtract :: (HashAlgorithm a, ByteArrayAccess ikm)
-               => ByteString -> ikm -> PRK a
+               => ([ByteString] -> [ByteString]) -> ikm -> PRK a
 labeledExtract = labeledExtractSalt (B.empty :: Bytes)
 
 labeledExtractSalt
     :: (HashAlgorithm a, ByteArrayAccess salt, ByteArrayAccess ikm)
-    => salt -> ByteString -> ikm -> PRK a
-labeledExtractSalt salt label ikm =
-    let labeledIkm = B.concat [ "RFCXXXX ", label, B.convert ikm ]
+    => salt -> ([ByteString] -> [ByteString]) -> ikm -> PRK a
+labeledExtractSalt salt prependLabel ikm =
+    let labeledIkm = B.concat $ "RFCXXXX " : prependLabel [ B.convert ikm ]
      in extract salt (labeledIkm :: Bytes)
 
 labeledExpand :: (HashAlgorithm a, ByteArray ba)

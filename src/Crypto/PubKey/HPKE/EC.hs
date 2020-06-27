@@ -189,7 +189,7 @@ xDeriveKeyPair :: (EllipticCurveStaticGroup curve, ByteArrayAccess ikm)
                -> ikm
                -> (Scalar curve, Point curve)
 xDeriveKeyPair prx desc nsk ikm =
-    withKDF (ecKDF prx) (labeledExtract desc ikm) $ \prk ->
+    withKDF (ecKDF prx) (labeledExtract (desc :) ikm) $ \prk ->
         build prx (expand prk (B.empty :: ByteString) nsk)
   where
     build :: EllipticCurveStaticGroup curve
@@ -203,7 +203,7 @@ pDeriveKeyPair :: (EllipticCurveScalarRange curve, ByteArrayAccess ikm)
                -> ikm
                -> (Scalar curve, Point curve)
 pDeriveKeyPair prx' desc nsk ikm =
-    withKDF (ecKDF prx') (labeledExtract desc ikm) (go prx' 1)
+    withKDF (ecKDF prx') (labeledExtract (desc :) ikm) (go prx' 1)
   where
     go :: (EllipticCurveScalarRange curve, HashAlgorithm hash)
        => proxy curve -> Word8 -> PRK hash -> (Scalar curve, Point curve)
