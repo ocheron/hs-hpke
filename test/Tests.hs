@@ -81,24 +81,24 @@ testVector step Vector{..} = do
     -- ephemeral key.
     testBase name kem cipher = do
         step ("Base: " ++ name)
-        pairR <- fromCryptoPassed $ unmarshalPrivate kem vecSkRm
+        pairR <- fromCryptoPassed $ deserializePrivate kem vecSkRm
         ctx <- fromCryptoPassed $ setupBaseR kem cipher vecEnc pairR vecInfo
         testBoth ctx vecExports vecEncryptions
     testPSK name kem cipher psk pskID = do
         step ("PSK: " ++ name)
-        pairR <- fromCryptoPassed $ unmarshalPrivate kem vecSkRm
+        pairR <- fromCryptoPassed $ deserializePrivate kem vecSkRm
         ctx <- fromCryptoPassed $ setupPSKR kem cipher vecEnc pairR vecInfo psk pskID
         testBoth ctx vecExports vecEncryptions
     testAuth name kem cipher skSm = do
         step ("Auth: " ++ name)
-        (_, pkS) <- fromCryptoPassed $ unmarshalPrivate kem skSm
-        pairR <- fromCryptoPassed $ unmarshalPrivate kem vecSkRm
+        (_, pkS) <- fromCryptoPassed $ deserializePrivate kem skSm
+        pairR <- fromCryptoPassed $ deserializePrivate kem vecSkRm
         ctx <- fromCryptoPassed $ setupAuthR kem cipher vecEnc pairR vecInfo pkS
         testBoth ctx vecExports vecEncryptions
     testAuthPSK name kem cipher psk pskID skSm = do
         step ("AuthPSK: " ++ name)
-        (_, pkS) <- fromCryptoPassed $ unmarshalPrivate kem skSm
-        pairR <- fromCryptoPassed $ unmarshalPrivate kem vecSkRm
+        (_, pkS) <- fromCryptoPassed $ deserializePrivate kem skSm
+        pairR <- fromCryptoPassed $ deserializePrivate kem vecSkRm
         ctx <- fromCryptoPassed $ setupAuthPSKR kem cipher vecEnc pairR vecInfo psk pskID pkS
         testBoth ctx vecExports vecEncryptions
 
@@ -154,8 +154,8 @@ derivationVectors =
 testDerivation :: Derivation -> TestTree
 testDerivation Derivation{..} = testCase (kemName derivKem) $ do
     let (sk, pk) = deriveKeyPair derivKem derivIkm
-        skRm     = marshalPrivate derivKem sk
-        pkRm     = marshal derivKem pk
+        skRm     = serializePrivate derivKem sk
+        pkRm     = serialize derivKem pk
     assertEqual "private key mismatch" derivSkRm skRm
     assertEqual "public key mismatch" derivPkRm pkRm
 

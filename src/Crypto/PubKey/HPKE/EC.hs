@@ -62,18 +62,18 @@ class EllipticCurve curve => EllipticCurveGroup curve where
 
 -- | Elliptic curves to be used as a group for DHKEM and supporting static keys.
 class EllipticCurveGroup curve => EllipticCurveStaticGroup curve where
-    -- | Produce a fixed-length octet string encoding the private key @sk@.
-    ecMarshalPrivate :: ByteArray ba
-                     => proxy curve
-                     -> Scalar curve
-                     -> ba
-
-    -- | Parse a fixed-length octet string containing a private key and return
-    -- the key pair.
-    ecUnmarshalPrivate :: ByteArray ba
+    -- | Produce a fixed-length byte string encoding the private key @sk@.
+    ecSerializePrivate :: ByteArray ba
                        => proxy curve
+                       -> Scalar curve
                        -> ba
-                       -> CryptoFailable (Scalar curve, Point curve)
+
+    -- | Parse a fixed-length byte string containing a private key and return
+    -- the key pair.
+    ecDeserializePrivate :: ByteArray ba
+                         => proxy curve
+                         -> ba
+                         -> CryptoFailable (Scalar curve, Point curve)
 
 -- | Elliptic curves to be used as a group for DHKEM and supporting key
 -- derivation.
@@ -102,12 +102,12 @@ instance EllipticCurveGroup curve => GroupKEM (ECGroup curve) where
 
     groupGetShared = ecGetShared . unECGroup
 
-    groupMarshal = encodePoint . unECGroup
-    groupUnmarshal = decodePoint . unECGroup
+    groupSerialize = encodePoint . unECGroup
+    groupDeserialize = decodePoint . unECGroup
 
 instance EllipticCurveStaticGroup curve => GroupStaticKEM (ECGroup curve) where
-    groupMarshalPrivate = ecMarshalPrivate . unECGroup
-    groupUnmarshalPrivate = ecUnmarshalPrivate . unECGroup
+    groupSerializePrivate = ecSerializePrivate . unECGroup
+    groupDeserializePrivate = ecDeserializePrivate . unECGroup
 
 instance EllipticCurveDeriveGroup curve => GroupDeriveKEM (ECGroup curve) where
     groupDeriveKeyPair = ecDeriveKeyPair . unECGroup
@@ -120,8 +120,8 @@ instance EllipticCurveGroup Curve_P256R1 where
     ecGetShared = deriveDecryptHpke
 
 instance EllipticCurveStaticGroup Curve_P256R1 where
-    ecMarshalPrivate _ = P256.scalarToBinary
-    ecUnmarshalPrivate _ bs = build <$> P256.scalarFromBinary bs
+    ecSerializePrivate _ = P256.scalarToBinary
+    ecDeserializePrivate _ bs = build <$> P256.scalarFromBinary bs
       where build k = (k, P256.toPoint k)
 
 instance EllipticCurveDeriveGroup Curve_P256R1 where
@@ -149,8 +149,8 @@ instance EllipticCurveGroup Curve_X25519 where
     ecGetShared = deriveDecrypt
 
 instance EllipticCurveStaticGroup Curve_X25519 where
-    ecMarshalPrivate _ = B.convert
-    ecUnmarshalPrivate _ bs = build <$> X25519.secretKey bs
+    ecSerializePrivate _ = B.convert
+    ecDeserializePrivate _ bs = build <$> X25519.secretKey bs
       where build k = (k, X25519.toPublic k)
 
 instance EllipticCurveDeriveGroup Curve_X25519 where
@@ -164,8 +164,8 @@ instance EllipticCurveGroup Curve_X448 where
     ecGetShared = deriveDecrypt
 
 instance EllipticCurveStaticGroup Curve_X448 where
-    ecMarshalPrivate _ = B.convert
-    ecUnmarshalPrivate _ bs = build <$> X448.secretKey bs
+    ecSerializePrivate _ = B.convert
+    ecDeserializePrivate _ bs = build <$> X448.secretKey bs
       where build k = (k, X448.toPublic k)
 
 instance EllipticCurveDeriveGroup Curve_X448 where
@@ -194,7 +194,7 @@ xDeriveKeyPair prx desc nsk ikm =
   where
     build :: EllipticCurveStaticGroup curve
           => proxy curve -> ScrubbedBytes -> (Scalar curve, Point curve)
-    build c = throwCryptoError . ecUnmarshalPrivate c
+    build c = throwCryptoError . ecDeserializePrivate c
 
 pDeriveKeyPair :: (EllipticCurveScalarRange curve, ByteArrayAccess ikm)
                => proxy curve
@@ -213,7 +213,7 @@ pDeriveKeyPair prx' desc nsk ikm =
       where
         label = "candidate " `B.snoc` cnt
         bytes = expand prk (label :: ByteString) nsk :: ScrubbedBytes
-        pair  = throwCryptoError (ecUnmarshalPrivate prx bytes)
+        pair  = throwCryptoError (ecDeserializePrivate prx bytes)
 
 class EllipticCurveStaticGroup curve => EllipticCurveScalarRange curve where
     scalarIsInRange :: proxy curve -> Scalar curve -> Bool

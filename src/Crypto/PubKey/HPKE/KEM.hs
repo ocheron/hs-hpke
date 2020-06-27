@@ -68,17 +68,17 @@ class KEM kem where
           -> KEMPublic kem
           -> CryptoFailable Zz
 
-    -- | Produce a fixed-length octet string encoding the public key @pk@.
-    marshal :: ByteArray ba
-            => proxy kem
-            -> KEMPublic kem
-            -> ba
-
-    -- | Parse a fixed-length octet string to recover a public key.
-    unmarshal :: ByteArray ba
+    -- | Produce a fixed-length byte string encoding the public key @pk@.
+    serialize :: ByteArray ba
               => proxy kem
+              -> KEMPublic kem
               -> ba
-              -> CryptoFailable (KEMPublic kem)
+
+    -- | Parse a fixed-length byte string to recover a public key.
+    deserialize :: ByteArray ba
+                => proxy kem
+                -> ba
+                -> CryptoFailable (KEMPublic kem)
 
 -- | A KEM supporting Asymmetric Key authentication.
 class KEM kem => AuthKEM kem where
@@ -105,18 +105,18 @@ class KEM kem => AuthKEM kem where
 -- | A KEM supporting static keys.
 class KEM kem => StaticKEM kem where
 
-    -- | Produce a fixed-length octet string encoding the private key @sk@.
-    marshalPrivate :: ByteArray ba
-                   => proxy kem
-                   -> KEMPrivate kem
-                   -> ba
-
-    -- | Parse a fixed-length octet string containing a private key and return
-    -- the key pair.
-    unmarshalPrivate :: ByteArray ba
+    -- | Produce a fixed-length byte string encoding the private key @sk@.
+    serializePrivate :: ByteArray ba
                      => proxy kem
+                     -> KEMPrivate kem
                      -> ba
-                     -> CryptoFailable (KEMPrivate kem, KEMPublic kem)
+
+    -- | Parse a fixed-length byte string containing a private key and return
+    -- the key pair.
+    deserializePrivate :: ByteArray ba
+                       => proxy kem
+                       -> ba
+                       -> CryptoFailable (KEMPrivate kem, KEMPublic kem)
 
 -- | A KEM supporting key derivation.
 class KEM kem => DeriveKEM kem where
