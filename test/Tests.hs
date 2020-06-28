@@ -165,6 +165,9 @@ testDerivation Derivation{..} = testCase (kemName derivKem) $ do
 genByteString :: Int -> Gen B.ByteString
 genByteString i = B.pack <$> vectorOf i arbitraryBoundedRandom
 
+genByteStringRange :: Int -> Int -> Gen B.ByteString
+genByteStringRange low high = choose (low, high) >>= genByteString
+
 instance Arbitrary Cipher where
     arbitrary =
         let kdf  = elements [ hkdf_sha256, hkdf_sha384, hkdf_sha512 ]
@@ -175,24 +178,24 @@ instance Arbitrary Cipher where
 newtype Info = Info B.ByteString deriving Show
 
 instance Arbitrary Info where
-    arbitrary = Info <$> (choose(0, 80) >>= genByteString)
+    arbitrary = Info <$> genByteStringRange 0 80
 
 newtype Aad = Aad B.ByteString deriving Show
 
 instance Arbitrary Aad where
-    arbitrary = Aad <$> (choose(0, 120) >>= genByteString)
+    arbitrary = Aad <$> genByteStringRange 0 120
 
 newtype Pt = Pt B.ByteString deriving Show
 
 instance Arbitrary Pt where
-    arbitrary = Pt <$> (choose(0, 512) >>= genByteString)
+    arbitrary = Pt <$> genByteStringRange 0 512
 
 data PskInfo = PskInfo { psk :: B.ByteString, pskId :: B.ByteString }
     deriving Show
 
 instance Arbitrary PskInfo where
-    arbitrary = PskInfo <$> (choose(1, 50) >>= genByteString)
-                        <*> (choose(1, 50) >>= genByteString)
+    arbitrary = PskInfo <$> genByteStringRange 1 50
+                        <*> genByteStringRange 1 50
 
 prop_base :: SomeKEM -> Cipher -> Info -> Aad -> Pt -> Property
 prop_base (SomeKEM kem) cipher (Info info) (Aad aad) (Pt pt) =
