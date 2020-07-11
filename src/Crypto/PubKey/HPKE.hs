@@ -143,7 +143,7 @@ keySchedule kem cipher zz info mPskInfo bPkS = do
         kdfId  = kdfID kdf
         aeadId = aeadID aead
 
-        default_psk   = B.zero nh
+        default_psk   = B.empty
         default_pskID = B.empty
 
         psk   = maybe default_psk fst mPskInfo
