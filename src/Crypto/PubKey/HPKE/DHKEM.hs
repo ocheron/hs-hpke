@@ -35,19 +35,22 @@ data DHKEM group
 unDHKEM :: proxy (DHKEM group) -> Proxy group
 unDHKEM _ = Proxy
 
-extractAndExpand :: KDF -> SharedSecret -> [ByteString] -> Zz
-extractAndExpand kdf dh kemContext =
-    withKDF kdf (labeledExtract ("dh" :) dh) $ \prk ->
-        labeledExpand prk "prk" kemContext nzz
-  where nzz = kdfNh kdf
+extractAndExpand :: KemID -> KDF -> SharedSecret -> [ByteString] -> Zz
+extractAndExpand kemId kdf dh kemContext =
+    withKDF kdf (labeledExtract sid "eae_prk" dh) $ \prk ->
+        labeledExpand prk sid "zz" kemContext nzz
+  where
+    sid = ("KEM" :) . be16 kemId
+    nzz = kdfNh kdf
 
 groupCombine :: GroupKEM group
              => proxy group -> Enc -> GroupPublic group -> SharedSecret -> Zz
 groupCombine grp enc pkR dh =
     let kdf = groupKDF grp
         pkRm = groupSerialize grp pkR
+        kemId = groupKemID grp
         kemContext = [ enc, pkRm ]
-     in extractAndExpand kdf dh kemContext
+     in extractAndExpand kemId kdf dh kemContext
 
 groupEncap :: (GroupKEM group, MonadRandom r)
            => proxy group -> GroupPublic group -> r (CryptoFailable Zz, Enc)
@@ -71,9 +74,10 @@ groupAuthCombine grp enc pkR pkS (SharedSecret dh1) (SharedSecret dh2) =
     let kdf = groupKDF grp
         pkRm = groupSerialize grp pkR
         pkSm = groupSerialize grp pkS
+        kemId = groupKemID grp
         kemContext = [ enc, pkRm, pkSm ]
         dh = B.append dh1 dh2
-     in extractAndExpand kdf (SharedSecret dh) kemContext
+     in extractAndExpand kemId kdf (SharedSecret dh) kemContext
 
 groupAuthEncap :: (GroupKEM group, MonadRandom r)
                => proxy group -> GroupPublic group -> GroupPrivate group -> GroupPublic group -> r (CryptoFailable Zz, Enc)

@@ -7,7 +7,8 @@
 --
 {-# LANGUAGE OverloadedStrings #-}
 module Crypto.PubKey.HPKE.Label
-    ( labeledExtract
+    ( SuiteId
+    , labeledExtract
     , labeledExtractSalt
     , labeledExpand
     ) where
@@ -19,19 +20,21 @@ import Crypto.KDF.HKDF
 
 import Crypto.PubKey.HPKE.Imports
 
+type SuiteId = [ByteString] -> [ByteString]
+
 labeledExtract :: (HashAlgorithm a, ByteArrayAccess ikm)
-               => ([ByteString] -> [ByteString]) -> ikm -> PRK a
+               => SuiteId -> ByteString -> ikm -> PRK a
 labeledExtract = labeledExtractSalt (B.empty :: Bytes)
 
 labeledExtractSalt
     :: (HashAlgorithm a, ByteArrayAccess salt, ByteArrayAccess ikm)
-    => salt -> ([ByteString] -> [ByteString]) -> ikm -> PRK a
-labeledExtractSalt salt prependLabel ikm =
-    let labeledIkm = B.concat $ "RFCXXXX " : prependLabel [ B.convert ikm ]
+    => salt -> SuiteId -> ByteString -> ikm -> PRK a
+labeledExtractSalt salt sid label ikm =
+    let labeledIkm = B.concat $ "RFCXXXX " : sid [ label, B.convert ikm ]
      in extract salt (labeledIkm :: Bytes)
 
 labeledExpand :: (HashAlgorithm a, ByteArray ba)
-              => PRK a -> ByteString -> [ByteString] -> Int -> ba
-labeledExpand prk label infos len =
-    let labeledInfo = B.concat $ be16 len ("RFCXXXX " : label : infos)
+              => PRK a -> SuiteId -> ByteString -> [ByteString] -> Int -> ba
+labeledExpand prk sid label infos len =
+    let labeledInfo = B.concat $ be16 len ("RFCXXXX " : sid (label : infos))
      in expand prk (labeledInfo :: Bytes) len

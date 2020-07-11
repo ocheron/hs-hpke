@@ -149,22 +149,23 @@ keySchedule kem cipher zz info mPskInfo bPkS = do
         psk   = maybe default_psk fst mPskInfo
         pskID = maybe default_pskID snd mPskInfo
 
-        pskID_hash = withKDF kdf (labeledExtract ("pskID_hash" :) pskID) B.convert
-        info_hash  = withKDF kdf (labeledExtract ("info_hash" :) info) B.convert
+        pskID_hash = withKDF kdf (labeledExtract sid "pskID_hash" pskID) B.convert
+        info_hash  = withKDF kdf (labeledExtract sid "info_hash" info) B.convert
         csuite     = be16 kemId . be16 kdfId . be16 aeadId
-        context    = csuite [ B.singleton mode, pskID_hash, info_hash ]
+        sid        = ("HPKE" :) . csuite
+        context    = [ B.singleton mode, pskID_hash, info_hash ]
 
-        withPSK    = withKDF kdf $ labeledExtract ("psk_hash" :) psk
+        withPSK    = withKDF kdf $ labeledExtract sid "psk_hash" psk
         withSecret = withKDF kdf $ withPSK $ \psk_hash ->
-            labeledExtractSalt psk_hash ("secret" :) zz
+            labeledExtractSalt psk_hash sid "secret" zz
 
-        key        = withSecret $ \s -> labeledExpand s "key" context nk
-        nonce      = withSecret $ \s -> labeledExpand s "nonce" context nn
-        exporter   = withSecret $ \s -> labeledExpand s "exp" context nh
+        key        = withSecret $ \s -> labeledExpand s sid "key" context nk
+        nonce      = withSecret $ \s -> labeledExpand s sid "nonce" context nn
+        exporter   = withSecret $ \s -> labeledExpand s sid "exp" context nh
 
         exportF :: ByteArray out => ByteString -> Int -> out
         exportF = withKDF kdf (extractSkip (exporter :: Bytes)) $ \s ->
-            labeledExpand s "sec" . (:[])
+            labeledExpand s sid "sec" . (:[])
 
     return Context { ctxEncrypt  = \f -> f (aeadEncryptF aead key)
                    , ctxDecrypt  = \f -> f (aeadDecryptF aead key)

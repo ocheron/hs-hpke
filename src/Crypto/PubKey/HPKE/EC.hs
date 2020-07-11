@@ -125,7 +125,7 @@ instance EllipticCurveStaticGroup Curve_P256R1 where
       where build k = (k, P256.toPoint k)
 
 instance EllipticCurveDeriveGroup Curve_P256R1 where
-    ecDeriveKeyPair prx = pDeriveKeyPair prx "p-256" 32
+    ecDeriveKeyPair prx = pDeriveKeyPair prx 32
 
 instance EllipticCurveGroup Curve_P384R1 where
     ecKemID _ = 0x0011
@@ -154,7 +154,7 @@ instance EllipticCurveStaticGroup Curve_X25519 where
       where build k = (k, X25519.toPublic k)
 
 instance EllipticCurveDeriveGroup Curve_X25519 where
-    ecDeriveKeyPair prx = xDeriveKeyPair prx "x25519" 32
+    ecDeriveKeyPair prx = xDeriveKeyPair prx 32
 
 instance EllipticCurveGroup Curve_X448 where
     ecKemID _ = 0x0021
@@ -169,7 +169,7 @@ instance EllipticCurveStaticGroup Curve_X448 where
       where build k = (k, X448.toPublic k)
 
 instance EllipticCurveDeriveGroup Curve_X448 where
-    ecDeriveKeyPair prx = xDeriveKeyPair prx "x448" 56
+    ecDeriveKeyPair prx = xDeriveKeyPair prx 56
 
 -- Variant of deriveDecrypt for NIST curves: the shared secret is the
 -- uncompressed encoding of the resulting point, not just the X coordinate.
@@ -184,35 +184,39 @@ deriveDecryptHpke prx p s = do
 
 xDeriveKeyPair :: (EllipticCurveStaticGroup curve, ByteArrayAccess ikm)
                => proxy curve
-               -> ByteString
                -> Int
                -> ikm
                -> (Scalar curve, Point curve)
-xDeriveKeyPair prx desc nsk ikm =
-    withKDF (ecKDF prx) (labeledExtract (desc :) ikm) $ \prk ->
-        build prx (expand prk (B.empty :: ByteString) nsk)
+xDeriveKeyPair prx nsk ikm =
+    withKDF (ecKDF prx) (labeledExtract sid "dkp_prk" ikm) $ \prk ->
+        build prx (labeledExpand prk sid "sk" [] nsk)
   where
+    kemId = ecKemID prx
+    sid   = ("KEM" :) . be16 kemId
+
     build :: EllipticCurveStaticGroup curve
           => proxy curve -> ScrubbedBytes -> (Scalar curve, Point curve)
     build c = throwCryptoError . ecDeserializePrivate c
 
 pDeriveKeyPair :: (EllipticCurveScalarRange curve, ByteArrayAccess ikm)
                => proxy curve
-               -> ByteString
                -> Int
                -> ikm
                -> (Scalar curve, Point curve)
-pDeriveKeyPair prx' desc nsk ikm =
-    withKDF (ecKDF prx') (labeledExtract (desc :) ikm) (go prx' 1)
+pDeriveKeyPair prx' nsk ikm =
+    withKDF (ecKDF prx') (labeledExtract sid "dkp_prk" ikm) (go prx' 0)
   where
+    kemId = ecKemID prx'
+    sid   = ("KEM" :) . be16 kemId
+
     go :: (EllipticCurveScalarRange curve, HashAlgorithm hash)
        => proxy curve -> Word8 -> PRK hash -> (Scalar curve, Point curve)
     go prx cnt prk
         | scalarIsInRange prx (fst pair) = pair
         | otherwise = go prx (succ cnt) prk
       where
-        label = "candidate " `B.snoc` cnt
-        bytes = expand prk (label :: ByteString) nsk :: ScrubbedBytes
+        infos = [ B.singleton cnt ]
+        bytes = labeledExpand prk sid "candidate" infos nsk :: ScrubbedBytes
         pair  = throwCryptoError (ecDeserializePrivate prx bytes)
 
 class EllipticCurveStaticGroup curve => EllipticCurveScalarRange curve where
