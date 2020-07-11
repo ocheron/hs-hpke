@@ -47,8 +47,12 @@ data Vector = Vector
     , vecKdfID       :: Int
     , vecAeadID      :: Int
     , vecInfo        :: ByteString
+    , vecSeedS       :: Maybe ByteString
     , vecSkSm        :: Maybe ByteString
+    , vecPkSm        :: Maybe ByteString
+    , vecSeedR       :: ByteString
     , vecSkRm        :: ByteString
+    , vecPkRm        :: ByteString
     , vecPsk         :: Maybe ByteString
     , vecPskID       :: Maybe ByteString
     , vecEnc         :: ByteString
@@ -63,8 +67,12 @@ instance FromJSON Vector where
         <*>  v .:   "kdfID"
         <*>  v .:   "aeadID"
         <*>  v .::  "info"
+        <*>  v .::? "seedS"
         <*>  v .::? "skSm"
+        <*>  v .::? "pkSm"
+        <*>  v .::  "seedR"
         <*>  v .::  "skRm"
+        <*>  v .::  "pkRm"
         <*>  v .::? "psk"
         <*>  v .::? "pskID"
         <*>  v .::  "enc"
