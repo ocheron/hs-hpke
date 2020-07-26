@@ -10,7 +10,7 @@ Currently supported:
 
 - KDF: HKDF-SHA256, HKDF-SHA384, HKDF-SHA512
 
-- AEAD: AES-GCM-128, AES-GCM-256, ChaCha20Poly1305
+- AEAD: AES-128-GCM, AES-256-GCM, ChaCha20Poly1305
 
 Elliptic curves P-384 and P-521 support operations with ephemeral keys only
 because underlying cryptographic primitives with `cryptonite` take variable

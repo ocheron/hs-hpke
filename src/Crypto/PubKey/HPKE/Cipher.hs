@@ -123,11 +123,11 @@ dec_chacha20poly1305 key nonce =
                 Poly1305.Auth tag = ChaChaPoly1305.finalize st3
             in (output, AuthTag tag))
 
--- | AES-GCM-128
+-- | AES-128-GCM
 aead_aes128gcm :: AEAD
 aead_aes128gcm = AEAD
     { aeadID           = 0x0001
-    , aeadName         = "AES-GCM-128"
+    , aeadName         = "AES-128-GCM"
     , aeadNk           = 16
     , aeadNn           = 12
     , aeadAuthTagLen   = 16
@@ -135,11 +135,11 @@ aead_aes128gcm = AEAD
     , aeadDecryptF     = dec_aes128gcm
     }
 
--- | AES-GCM-256
+-- | AES-256-GCM
 aead_aes256gcm :: AEAD
 aead_aes256gcm = AEAD
     { aeadID           = 0x0002
-    , aeadName         = "AES-GCM-256"
+    , aeadName         = "AES-256-GCM"
     , aeadNk           = 32
     , aeadNn           = 12
     , aeadAuthTagLen   = 16
