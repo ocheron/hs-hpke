@@ -149,7 +149,7 @@ keySchedule kem cipher zz info mPskInfo bPkS = do
         psk   = maybe default_psk fst mPskInfo
         pskID = maybe default_pskID snd mPskInfo
 
-        pskID_hash = withKDF kdf (labeledExtract sid "pskID_hash" pskID) B.convert
+        pskID_hash = withKDF kdf (labeledExtract sid "psk_id_hash" pskID) B.convert
         info_hash  = withKDF kdf (labeledExtract sid "info_hash" info) B.convert
         csuite     = be16 kemId . be16 kdfId . be16 aeadId
         sid        = ("HPKE" :) . csuite

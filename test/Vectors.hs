@@ -63,9 +63,9 @@ data Vector = Vector
 instance FromJSON Vector where
     parseJSON = withObject "Vector" $ \v -> Vector
         <$>  v .:   "mode"
-        <*>  v .:   "kemID"
-        <*>  v .:   "kdfID"
-        <*>  v .:   "aeadID"
+        <*>  v .:   "kem_id"
+        <*>  v .:   "kdf_id"
+        <*>  v .:   "aead_id"
         <*>  v .::  "info"
         <*>  v .::? "seedS"
         <*>  v .::? "skSm"
@@ -74,7 +74,7 @@ instance FromJSON Vector where
         <*>  v .::  "skRm"
         <*>  v .::  "pkRm"
         <*>  v .::? "psk"
-        <*>  v .::? "pskID"
+        <*>  v .::? "psk_id"
         <*>  v .::  "enc"
         <*>  v .:   "encryptions"
         <*>  v .:   "exports"
