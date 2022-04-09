@@ -69,16 +69,16 @@ class KEM kem where
           -> CryptoFailable Zz
 
     -- | Produce a fixed-length byte string encoding the public key @pk@.
-    serialize :: ByteArray ba
-              => proxy kem
-              -> KEMPublic kem
-              -> ba
+    serializePublic :: ByteArray ba
+                    => proxy kem
+                    -> KEMPublic kem
+                    -> ba
 
     -- | Parse a fixed-length byte string to recover a public key.
-    deserialize :: ByteArray ba
-                => proxy kem
-                -> ba
-                -> CryptoFailable (KEMPublic kem)
+    deserializePublic :: ByteArray ba
+                      => proxy kem
+                      -> ba
+                      -> CryptoFailable (KEMPublic kem)
 
 -- | A KEM supporting Asymmetric Key authentication.
 class KEM kem => AuthKEM kem where

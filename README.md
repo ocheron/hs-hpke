@@ -2,7 +2,7 @@
 
 _Hybrid Public Key Encryption_ implemented in Haskell.
 
-See [draft-irtf-cfrg-hpke](https://tools.ietf.org/html/draft-irtf-cfrg-hpke).
+See [RFC 9180](https://datatracker.ietf.org/doc/html/rfc9180).
 
 Currently supported:
 

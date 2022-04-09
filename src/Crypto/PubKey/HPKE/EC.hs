@@ -102,8 +102,8 @@ instance EllipticCurveGroup curve => GroupKEM (ECGroup curve) where
 
     groupGetShared = ecGetShared . unECGroup
 
-    groupSerialize = encodePoint . unECGroup
-    groupDeserialize = decodePoint . unECGroup
+    groupSerializePublic = encodePoint . unECGroup
+    groupDeserializePublic = decodePoint . unECGroup
 
 instance EllipticCurveStaticGroup curve => GroupStaticKEM (ECGroup curve) where
     groupSerializePrivate = ecSerializePrivate . unECGroup
@@ -117,7 +117,7 @@ instance EllipticCurveGroup Curve_P256R1 where
     ecName _  = "P-256"
     ecKDF _   = hkdf_sha256
 
-    ecGetShared = deriveDecryptHpke
+    ecGetShared = deriveDecrypt
 
 instance EllipticCurveStaticGroup Curve_P256R1 where
     ecSerializePrivate _ = P256.scalarToBinary
@@ -132,14 +132,14 @@ instance EllipticCurveGroup Curve_P384R1 where
     ecName _  = "P-384"
     ecKDF _   = hkdf_sha384
 
-    ecGetShared = deriveDecryptHpke
+    ecGetShared = deriveDecrypt
 
 instance EllipticCurveGroup Curve_P521R1 where
     ecKemID _ = 0x0012
     ecName _  = "P-521"
     ecKDF _   = hkdf_sha512
 
-    ecGetShared = deriveDecryptHpke
+    ecGetShared = deriveDecrypt
 
 instance EllipticCurveGroup Curve_X25519 where
     ecKemID _ = 0x0020
@@ -170,17 +170,6 @@ instance EllipticCurveStaticGroup Curve_X448 where
 
 instance EllipticCurveDeriveGroup Curve_X448 where
     ecDeriveKeyPair prx = xDeriveKeyPair prx 56
-
--- Variant of deriveDecrypt for NIST curves: the shared secret is the
--- uncompressed encoding of the resulting point, not just the X coordinate.
-deriveDecryptHpke :: (EllipticCurveDH curve, EllipticCurveArith curve)
-                  => proxy curve
-                  -> Point curve
-                  -> Scalar curve
-                  -> CryptoFailable SharedSecret
-deriveDecryptHpke prx p s = do
-    _ <- deriveDecrypt prx p s  -- just for validation
-    return $ SharedSecret $ encodePoint prx $ pointSmul prx s p
 
 xDeriveKeyPair :: (EllipticCurveStaticGroup curve, ByteArrayAccess ikm)
                => proxy curve

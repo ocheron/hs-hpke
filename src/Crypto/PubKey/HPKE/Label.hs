@@ -30,11 +30,11 @@ labeledExtractSalt
     :: (HashAlgorithm a, ByteArrayAccess salt, ByteArrayAccess ikm)
     => salt -> SuiteId -> ByteString -> ikm -> PRK a
 labeledExtractSalt salt sid label ikm =
-    let labeledIkm = B.concat $ "HPKE-05 " : sid [ label, B.convert ikm ]
+    let labeledIkm = B.concat $ "HPKE-v1" : sid [ label, B.convert ikm ]
      in extract salt (labeledIkm :: Bytes)
 
 labeledExpand :: (HashAlgorithm a, ByteArray ba)
               => PRK a -> SuiteId -> ByteString -> [ByteString] -> Int -> ba
 labeledExpand prk sid label infos len =
-    let labeledInfo = B.concat $ be16 len ("HPKE-05 " : sid (label : infos))
+    let labeledInfo = B.concat $ be16 len ("HPKE-v1" : sid (label : infos))
      in expand prk (labeledInfo :: Bytes) len

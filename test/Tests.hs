@@ -65,17 +65,17 @@ testVector step Vector{..} = do
             let cipher = Cipher kdf aead
                 name   = kemName kem ++ ", " ++ kdfName kdf
                                      ++ ", " ++ aeadName aead
-            case (vecSkSm, vecPsk, vecPskID) of
-                (Just skSm, Just psk, Just pskID) -> testAuthPSK name kem cipher psk pskID skSm
-                (Just skSm, Nothing, Nothing)     -> testAuth name kem cipher skSm
+            case (vecPkSm, vecPsk, vecPskID) of
+                (Just pkSm, Just psk, Just pskID) -> testAuthPSK name kem cipher psk pskID pkSm
+                (Just pkSm, Nothing, Nothing)     -> testAuth name kem cipher pkSm
                 (Nothing, Just psk, Just pskID)   -> testPSK name kem cipher psk pskID
                 (Nothing, Nothing, Nothing)       -> testBase name kem cipher
                 _                                 -> fail "invalid vector"
-            testDeriveKey kem "recipient" vecSeedR vecSkRm vecPkRm
-            case (vecSeedS, vecSkSm, vecPkSm) of
-                (Just seedS, Just skSm, Just pkSm) -> testDeriveKey kem "sender" seedS skSm pkSm
+            testDeriveKey kem "recipient" vecIkmR vecSkRm vecPkRm
+            case (vecIkmS, vecSkSm, vecPkSm) of
+                (Just ikmS, Just skSm, Just pkSm)  -> testDeriveKey kem "sender" ikmS skSm pkSm
                 (Nothing, Nothing, Nothing)        -> return ()
-                _                                  -> fail "invalid sender seed"
+                _                                  -> fail "invalid sender ikm"
         _ -> return ()
   where
     -- In test vectors we use only the recipient context because the @enc@ value
@@ -92,15 +92,15 @@ testVector step Vector{..} = do
         pairR <- fromCryptoPassed $ deserializePrivate kem vecSkRm
         ctx <- fromCryptoPassed $ setupPSKR kem cipher vecEnc pairR vecInfo psk pskID
         testBoth ctx vecExports vecEncryptions
-    testAuth name kem cipher skSm = do
+    testAuth name kem cipher pkSm = do
         step ("Auth: " ++ name)
-        (_, pkS) <- fromCryptoPassed $ deserializePrivate kem skSm
+        pkS <- fromCryptoPassed $ deserializePublic kem pkSm
         pairR <- fromCryptoPassed $ deserializePrivate kem vecSkRm
         ctx <- fromCryptoPassed $ setupAuthR kem cipher vecEnc pairR vecInfo pkS
         testBoth ctx vecExports vecEncryptions
-    testAuthPSK name kem cipher psk pskID skSm = do
+    testAuthPSK name kem cipher psk pskID pkSm = do
         step ("AuthPSK: " ++ name)
-        (_, pkS) <- fromCryptoPassed $ deserializePrivate kem skSm
+        pkS <- fromCryptoPassed $ deserializePublic kem pkSm
         pairR <- fromCryptoPassed $ deserializePrivate kem vecSkRm
         ctx <- fromCryptoPassed $ setupAuthPSKR kem cipher vecEnc pairR vecInfo psk pskID pkS
         testBoth ctx vecExports vecEncryptions
@@ -122,10 +122,10 @@ testVector step Vector{..} = do
     testExports ctx = mapM_ $ \Export{..} ->
         assertEqual "export mismatch" (export ctx eContext eLength) eValue
 
-    testDeriveKey kem name seed skm pkm = do
-        let (sk, pk) = deriveKeyPair kem seed
+    testDeriveKey kem name ikm skm pkm = do
+        let (sk, pk) = deriveKeyPair kem ikm
             derivedSkm = serializePrivate kem sk
-            derivedPkm = serialize kem pk
+            derivedPkm = serializePublic kem pk
         assertEqual (name ++ " private key mismatch") skm derivedSkm
         assertEqual (name ++ " public key mismatch") pkm derivedPkm
 

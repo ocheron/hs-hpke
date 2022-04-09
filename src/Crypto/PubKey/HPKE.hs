@@ -6,7 +6,7 @@
 -- Portability : unknown
 --
 -- Hybrid Public Key Encryption (HPKE), defined in
--- <https://tools.ietf.org/html/draft-irtf-cfrg-hpke draft-irtf-cfrg-hpke>.
+-- <https://datatracker.ietf.org/doc/html/rfc9180 RFC 9180>.
 --
 -- HPKE schemes combine asymmetric and symmetric algorithms in an interoperable
 -- standard to secure communications between a sender (S) and a recipient (R).
@@ -155,24 +155,22 @@ keySchedule kem cipher zz info mPskInfo bPkS = do
         sid        = ("HPKE" :) . csuite
         context    = [ B.singleton mode, pskID_hash, info_hash ]
 
-        withPSK    = withKDF kdf $ labeledExtract sid "psk_hash" psk
-        withSecret = withKDF kdf $ withPSK $ \psk_hash ->
-            labeledExtractSalt psk_hash sid "secret" zz
+        withSecret = withKDF kdf $ labeledExtractSalt zz sid "secret" psk
 
         key        = withSecret $ \s -> labeledExpand s sid "key" context nk
-        nonce      = withSecret $ \s -> labeledExpand s sid "nonce" context nn
+        base_nonce = withSecret $ \s -> labeledExpand s sid "base_nonce" context nn
         exporter   = withSecret $ \s -> labeledExpand s sid "exp" context nh
 
         exportF :: ByteArray out => ByteString -> Int -> out
         exportF = withKDF kdf (extractSkip (exporter :: Bytes)) $ \s ->
             labeledExpand s sid "sec" . (:[])
 
-    return Context { ctxEncrypt  = \f -> f (aeadEncryptF aead key)
-                   , ctxDecrypt  = \f -> f (aeadDecryptF aead key)
-                   , ctxTagLen   = aeadAuthTagLen aead
-                   , ctxNonce    = nonce
-                   , ctxExport   = exportF
-                   , ctxSeq      = B.zero nn
+    return Context { ctxEncrypt   = \f -> f (aeadEncryptF aead key)
+                   , ctxDecrypt   = \f -> f (aeadDecryptF aead key)
+                   , ctxTagLen    = aeadAuthTagLen aead
+                   , ctxBaseNonce = base_nonce
+                   , ctxExport    = exportF
+                   , ctxSeq       = B.zero nn
                    }
   where
     mode = (if isJust mPskInfo then 1 else 0) + (if bPkS then 2 else 0)
@@ -341,5 +339,6 @@ skip = snd . nextNonce
 
 -- | Produce a secret derived from the internal exporter secret, specifying a
 -- context string and the desired length in bytes.
+{-# ANN export ("HLint: ignore Eta reduce" :: String) #-}
 export :: ByteArray out => Context r -> ByteString -> Int -> out
-export = ctxExport
+export ctx = ctxExport ctx

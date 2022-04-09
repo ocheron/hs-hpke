@@ -47,7 +47,7 @@ groupCombine :: GroupKEM group
              => proxy group -> Enc -> GroupPublic group -> SharedSecret -> Zz
 groupCombine grp enc pkR dh =
     let kdf = groupKDF grp
-        pkRm = groupSerialize grp pkR
+        pkRm = groupSerializePublic grp pkR
         kemId = groupKemID grp
         kemContext = [ enc, pkRm ]
      in extractAndExpand kemId kdf dh kemContext
@@ -57,14 +57,14 @@ groupEncap :: (GroupKEM group, MonadRandom r)
 groupEncap grp pkR = do
     (skE, pkE) <- groupGenerateKeyPair grp
     let mDh  = groupGetShared grp pkR skE
-        enc  = groupSerialize grp pkE
+        enc  = groupSerializePublic grp pkE
         mZz  = groupCombine grp enc pkR <$> mDh
     return (mZz, enc)
 
 groupDecap :: GroupKEM group
            => proxy group -> Enc -> GroupPrivate group -> GroupPublic group -> CryptoFailable Zz
 groupDecap grp enc skR pkR = do
-    pkE <- groupDeserialize grp enc
+    pkE <- groupDeserializePublic grp enc
     let mDh = groupGetShared grp pkE skR
     groupCombine grp enc pkR <$> mDh
 
@@ -72,8 +72,8 @@ groupAuthCombine :: GroupKEM group
                  => proxy group -> Enc -> GroupPublic group -> GroupPublic group -> SharedSecret -> SharedSecret -> Zz
 groupAuthCombine grp enc pkR pkS (SharedSecret dh1) (SharedSecret dh2) =
     let kdf = groupKDF grp
-        pkRm = groupSerialize grp pkR
-        pkSm = groupSerialize grp pkS
+        pkRm = groupSerializePublic grp pkR
+        pkSm = groupSerializePublic grp pkS
         kemId = groupKemID grp
         kemContext = [ enc, pkRm, pkSm ]
         dh = B.append dh1 dh2
@@ -85,14 +85,14 @@ groupAuthEncap grp pkR skS pkS = do
     (skE, pkE) <- groupGenerateKeyPair grp
     let mDh1 = groupGetShared grp pkR skE
         mDh2 = groupGetShared grp pkR skS
-        enc  = groupSerialize grp pkE
+        enc  = groupSerializePublic grp pkE
         mZz  = groupAuthCombine grp enc pkR pkS <$> mDh1 <*> mDh2
     return (mZz, enc)
 
 groupAuthDecap :: GroupKEM group
                => proxy group -> Enc -> GroupPrivate group -> GroupPublic group -> GroupPublic group -> CryptoFailable Zz
 groupAuthDecap grp enc skR pkR pkS = do
-    pkE <- groupDeserialize grp enc
+    pkE <- groupDeserializePublic grp enc
     let mDh1 = groupGetShared grp pkE skR
         mDh2 = groupGetShared grp pkS skR
     groupAuthCombine grp enc pkR pkS <$> mDh1 <*> mDh2
@@ -131,16 +131,16 @@ class GroupKEM group where
                    -> CryptoFailable SharedSecret
 
     -- | Produce a fixed-length byte string encoding the public key @pk@.
-    groupSerialize :: ByteArray ba
-                   => proxy group
-                   -> GroupPublic group
-                   -> ba
+    groupSerializePublic :: ByteArray ba
+                         => proxy group
+                         -> GroupPublic group
+                         -> ba
 
     -- | Parse a fixed-length byte string to recover a public key.
-    groupDeserialize :: ByteArray ba
-                     => proxy group
-                     -> ba
-                     -> CryptoFailable (GroupPublic group)
+    groupDeserializePublic :: ByteArray ba
+                           => proxy group
+                           -> ba
+                           -> CryptoFailable (GroupPublic group)
 
 -- | Groups supporting DH-Based KEM with static keys.
 class GroupKEM group => GroupStaticKEM group where
@@ -178,8 +178,8 @@ instance GroupKEM group => KEM (DHKEM group) where
     encap = groupEncap . unDHKEM
     decap = groupDecap . unDHKEM
 
-    serialize = groupSerialize . unDHKEM
-    deserialize = groupDeserialize . unDHKEM
+    serializePublic = groupSerializePublic . unDHKEM
+    deserializePublic = groupDeserializePublic . unDHKEM
 
 instance GroupKEM group => AuthKEM (DHKEM group) where
     authEncap = groupAuthEncap . unDHKEM

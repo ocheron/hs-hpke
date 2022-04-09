@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 module Vectors
@@ -25,9 +26,9 @@ data Encryption = Encryption
 
 instance FromJSON Encryption where
     parseJSON = withObject "Encryption" $ \o -> Encryption
-        <$> o .:: "plaintext"
+        <$> o .:: "pt"
         <*> o .:: "aad"
-        <*> o .:: "ciphertext"
+        <*> o .:: "ct"
 
 data Export = Export
     { eContext  :: ByteString
@@ -37,9 +38,9 @@ data Export = Export
 
 instance FromJSON Export where
     parseJSON = withObject "Export" $ \o -> Export
-        <$> o .:: "exportContext"
-        <*> o .:  "exportLength"
-        <*> o .:: "exportValue"
+        <$> o .:: "exporter_context"
+        <*> o .:  "L"
+        <*> o .:: "exported_value"
 
 data Vector = Vector
     { vecMode        :: Int
@@ -47,10 +48,10 @@ data Vector = Vector
     , vecKdfID       :: Int
     , vecAeadID      :: Int
     , vecInfo        :: ByteString
-    , vecSeedS       :: Maybe ByteString
+    , vecIkmS        :: Maybe ByteString
     , vecSkSm        :: Maybe ByteString
     , vecPkSm        :: Maybe ByteString
-    , vecSeedR       :: ByteString
+    , vecIkmR        :: ByteString
     , vecSkRm        :: ByteString
     , vecPkRm        :: ByteString
     , vecPsk         :: Maybe ByteString
@@ -67,10 +68,10 @@ instance FromJSON Vector where
         <*>  v .:   "kdf_id"
         <*>  v .:   "aead_id"
         <*>  v .::  "info"
-        <*>  v .::? "seedS"
+        <*>  v .::? "ikmS"
         <*>  v .::? "skSm"
         <*>  v .::? "pkSm"
-        <*>  v .::  "seedR"
+        <*>  v .::  "ikmR"
         <*>  v .::  "skRm"
         <*>  v .::  "pkRm"
         <*>  v .::? "psk"
@@ -93,10 +94,14 @@ sortVectors = sortBy comp
     key Vector{..} = (vecKemID < 0x0020, vecKemID, vecKdfID, vecAeadID, vecMode)
     comp a b = key a `compare` key b
 
-(.::) :: Object -> Text -> Parser ByteString
+#if !(MIN_VERSION_aeson(2,0,0))
+type Key = Text
+#endif
+
+(.::) :: Object -> Key -> Parser ByteString
 o .:: name = (o .: name) >>= fromBase16
 
-(.::?) :: Object -> Text -> Parser (Maybe ByteString)
+(.::?) :: Object -> Key -> Parser (Maybe ByteString)
 o .::? name = (o .:? name) >>= opt fromBase16
 
 opt :: Monad m => (a -> m b) -> Maybe a -> m (Maybe b)

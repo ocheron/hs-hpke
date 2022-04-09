@@ -3,8 +3,10 @@ compiler: ghc-8.0 lts-9.21
 compiler: ghc-8.2 lts-11.22
 compiler: ghc-8.4 lts-12.26
 compiler: ghc-8.6 lts-14.27
-compiler: ghc-8.8 lts-15.13
-compiler: ghc-8.10 nightly-2020-06-25
+compiler: ghc-8.8 lts-16.31
+compiler: ghc-8.10 lts-18.28
+compiler: ghc-9.0 lts-19.2
+compiler: ghc-9.2 nightly-2022-04-09
 
 # options
 # option: alias x=y z=v
@@ -18,7 +20,9 @@ build: ghc-8.2 cryptonitedep memorydep
 build: ghc-8.4 cryptonitedep
 build: ghc-8.6 cryptonitedep
 build: ghc-8.8 cryptonitedep
-build: ghc-8.10 cryptonitedep
+build: ghc-8.10
+build: ghc-9.0
+build: ghc-9.2
 
 # packages
 package: '.'

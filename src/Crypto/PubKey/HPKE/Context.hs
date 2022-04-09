@@ -28,12 +28,12 @@ data Role = Sender    -- ^ Initiate and encrypt
 
 -- | HPKE context
 data Context (r :: Role) = Context
-    { ctxEncrypt  :: forall aad ba a . (ByteArrayAccess aad, ByteArray ba) => (RunAEAD aad ba -> a) -> a
-    , ctxDecrypt  :: forall aad ba a . (ByteArrayAccess aad, ByteArray ba) => (RunAEAD aad ba -> a) -> a
-    , ctxTagLen   :: Int
-    , ctxNonce    :: NonceAEAD
-    , ctxExport   :: forall out . ByteArray out => ByteString -> Int -> out
-    , ctxSeq      :: NonceAEAD
+    { ctxEncrypt   :: forall aad ba a . (ByteArrayAccess aad, ByteArray ba) => (RunAEAD aad ba -> a) -> a
+    , ctxDecrypt   :: forall aad ba a . (ByteArrayAccess aad, ByteArray ba) => (RunAEAD aad ba -> a) -> a
+    , ctxTagLen    :: Int
+    , ctxBaseNonce :: NonceAEAD
+    , ctxExport    :: forall out . ByteArray out => ByteString -> Int -> out
+    , ctxSeq       :: NonceAEAD
     }
 
 -- | Allow to change the role of an existing context.  This is a dangerous
@@ -45,7 +45,7 @@ changeRole = coerce
 nextNonce :: Context r -> (NonceAEAD, Context r)
 nextNonce ctx =
     let nextSeq = fromJust "HPKE nonce overflow" $ incbe (ctxSeq ctx)
-     in (ctxSeq ctx `B.xor` ctxNonce ctx, ctx { ctxSeq = nextSeq })
+     in (ctxSeq ctx `B.xor` ctxBaseNonce ctx, ctx { ctxSeq = nextSeq })
 
 incbe :: NonceAEAD -> Maybe NonceAEAD
 incbe bs =
