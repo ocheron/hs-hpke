@@ -20,10 +20,22 @@ description: |
     HPKE schemes combine asymmetric and symmetric algorithms in an interoperable
     standard.
 
+flags:
+  use_crypton:
+    description: Use crypton instead of cryptonite
+    manual: true
+    default: false
+
 dependencies:
 - base >= 4.7 && < 5
 - bytestring
-- cryptonite >= 0.27
+
+when:
+  - condition: flag(use_crypton)
+    then:
+      dependencies: crypton
+    else:
+      dependencies: cryptonite >= 0.27
 
 ghc-options:
 - -Wall

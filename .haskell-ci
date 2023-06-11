@@ -5,14 +5,16 @@ compiler: ghc-8.4 lts-12.26
 compiler: ghc-8.6 lts-14.27
 compiler: ghc-8.8 lts-16.31
 compiler: ghc-8.10 lts-18.28
-compiler: ghc-9.0 lts-19.2
-compiler: ghc-9.2 nightly-2022-04-09
+compiler: ghc-9.0 lts-19.33
+compiler: ghc-9.2 lts-20.25
+compiler: ghc-9.4 nightly-2023-06-11
 
 # options
 # option: alias x=y z=v
 option: cryptonitedep extradep=cryptonite-0.27
 option: memorydep extradep=memory-0.14.18 extradep=basement-0.0.8
 option: tastymin extradep=tasty-hunit-0.10
+option: usecrypton flag=hpke:use_crypton
 
 # builds
 build: ghc-8.0 cryptonitedep memorydep tastymin
@@ -23,6 +25,7 @@ build: ghc-8.8 cryptonitedep
 build: ghc-8.10
 build: ghc-9.0
 build: ghc-9.2
+build: ghc-9.4 usecrypton
 
 # packages
 package: '.'
